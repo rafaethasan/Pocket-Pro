@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Money Center | Soft X{% endblock %}
+{% block content %}
+{% set default_branch_id = (branches[0].id if branches else 1) %}
+<section class="money-center-shell pocket-home-shell pocket-native-home">
+    <section class="panel expenses2-head money-hero-card pocket-hero-card pocket-home-master" id="money-top">
+        <div class="pocket-home-head pocket-native-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Personal Finance', 'পার্সোনাল ফাইন্যান্স') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-wallet"></i>{{ txt('Pocket Money Home', 'পকেট মানি হোম') }}</h3>
+                <p class="muted-text">{{ txt('A premium mobile-first home for daily money flow, fast add and quick review.', 'দৈনিক টাকা প্রবাহ, দ্রুত এন্ট্রি এবং সহজ review-এর জন্য premium mobile-first home।') }}</p>
+            </div>
+            <div class="toolbar pocket-head-actions">
+                <a class="link-btn" href="{{ url_for('reports', preset='month') }}"><i class="fa-solid fa-chart-line"></i>{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>
+            </div>
+        </div>
+
+        <div class="pocket-balance-hero">
+            <div class="pocket-balance-main">
+                <span>{{ txt('Current Net Balance', 'বর্তমান নেট ব্যালেন্স') }}</span>
+                <strong class="{% if net_balance < 0 %}text-danger{% else %}text-ok{% endif %}">{{ net_balance|money }}</strong>
+                <small>{{ txt('Approved income minus approved expense', 'approved income থেকে approved expense বাদ') }}</small>
+            </div>
+            <div class="pocket-balance-grid">
+                <article>
+                    <span>{{ txt('Income', 'আয়') }}</span>
+                    <strong>{{ approved_income|money }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('Expense', 'খরচ') }}</span>
+                    <strong>{{ approved_expense|money }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('Pending', 'পেন্ডিং') }}</span>
+                    <strong>{{ ((income_totals.pending_total or 0) + (expense_totals.pending_total or 0))|money }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('This View', 'এই ভিউ') }}</span>
+                    <strong>{{ date_to }}</strong>
+                </article>
+            </div>
+        </div>
+
+        <div class="money-hero-quick pocket-native-quick">
+            <div class="money-hero-quick-head">
+                <h4><i class="fa-solid fa-bolt"></i>{{ txt('Main Features', 'মেইন ফিচার') }}</h4>
+                <p>{{ txt('Only the most-used cards stay on home.', 'হোমে শুধু সবচেয়ে বেশি ব্যবহার হওয়া কার্ড রাখা হয়েছে।') }}</p>
+            </div>
+            <div class="money-quick-grid pocket-feature-grid">
+                <a class="money-quick-box" href="#add-income-card">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>{{ txt('Add Income', 'আয় যোগ') }}</span>
+                </a>
+                <a class="money-quick-box" href="{{ url_for('expenses') }}">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>{{ txt('Add Expense', 'খরচ যোগ') }}</span>
+                </a>
+                <a class="money-quick-box" href="{{ url_for('reports', preset='month') }}">
+                    <i class="fa-solid fa-chart-column"></i>
+                    <span>{{ txt('Reports', 'রিপোর্ট') }}</span>
+                </a>
+                <a class="money-quick-box" href="{{ url_for('pocket_more') }}">
+                    <i class="fa-solid fa-ellipsis"></i>
+                    <span>{{ txt('More', 'মোর') }}</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel money-card pocket-compose-card pocket-income-native" id="add-income-card">
+        <div class="panel-head pocket-entry-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Quick Entry', 'কুইক এন্ট্রি') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-plus"></i>{{ txt('Income Entry', 'ইনকাম এন্ট্রি') }}</h3>
+            </div>
+            <div class="toolbar">
+                <a class="link-btn" href="{{ url_for('expenses') }}"><i class="fa-solid fa-arrow-right-arrow-left"></i>{{ txt('Go Expense', 'Expense এ যান') }}</a>
+            </div>
+        </div>
+        <p class="muted-text pocket-section-note">{{ txt('Home stays minimal and fast. Entry is designed like a finance app screen for one-hand mobile use.', 'হোম পেইজকে দ্রুত ও মিনিমাল রাখা হয়েছে। এন্ট্রি অংশ finance app screen-এর মতো one-hand mobile use-এর জন্য সাজানো।') }}</p>
+        <form method="post" enctype="multipart/form-data" class="form-grid money-form-grid pocket-income-form pocket-native-form">
+            <input type="hidden" name="action" value="add_income">
+            <input type="hidden" name="branch_id" value="{{ default_branch_id }}">
+            {% if is_admin_user %}
+            <input type="hidden" name="auto_approve" value="1">
+            {% endif %}
+
+            <label class="pocket-amount-field full">
+                <span>{{ txt('Amount', 'টাকার পরিমাণ') }}</span>
+                <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required>
+                <small>{{ txt('Write the money amount first for faster entry.', 'দ্রুত এন্ট্রির জন্য আগে টাকার পরিমাণ লিখুন।') }}</small>
+            </label>
+
+            <label>
+                {{ txt('Date', 'তারিখ') }}
+                <input type="date" name="income_date" value="{{ date_to }}" required>
+            </label>
+            <label>
+                {{ txt('Income Category', 'আয়ের ক্যাটাগরি') }}
+                <select name="category" required>
+                    {% for cat in income_categories %}
+                    <option value="{{ cat.key }}">{{ txt(cat.label_en, cat.label_bn) }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ txt('Payment Method', 'পেমেন্ট মেথড') }}
+                <select name="payment_method" required>
+                    {% for method in income_methods %}
+                    <option value="{{ method }}">{{ method }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ txt('Source Name', 'উৎসের নাম') }}
+                <input type="text" name="source_name" placeholder="{{ txt('Example: Salary / Family / Client', 'উদাহরণ: Salary / Family / Client') }}">
+            </label>
+            <label>
+                {{ txt('Receipt Photo', 'রিসিপ্ট ছবি') }}
+                <input type="file" name="receipt_photo" accept="image/*">
+            </label>
+            <label class="full">
+                {{ txt('Note', 'নোট') }}
+                <textarea name="note" rows="3" placeholder="{{ txt('Optional details', 'অতিরিক্ত তথ্য (ইচ্ছাধীন)') }}"></textarea>
+            </label>
+            <div class="form-actions full pocket-entry-actions">
+                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Income', 'আয় সেভ করুন') }}</button>
+                <a class="btn-secondary" href="{{ url_for('reports', preset='month') }}"><i class="fa-solid fa-chart-line"></i>{{ txt('View Reports', 'রিপোর্ট দেখুন') }}</a>
+            </div>
+        </form>
+    </section>
+</section>
+{% endblock %}

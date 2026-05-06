@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% block title %}Expenses | Soft X{% endblock %}
+{% block content %}
+{% set default_branch_id = (branches[0].id if branches else 1) %}
+{% if is_pocket_module %}
+<section class="money-center-shell pocket-expense-shell">
+    <section class="panel expenses2-head money-hero-card pocket-hero-card pocket-expense-hero">
+        <div class="pocket-home-head pocket-native-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Expense Studio', 'এক্সপেন্স স্টুডিও') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-receipt"></i>{{ txt('Expense Entry', 'এক্সপেন্স এন্ট্রি') }}</h3>
+                <p class="muted-text">{{ txt('A native finance style expense screen with fast amount entry, clean filtering and recent ledger cards.', 'দ্রুত amount entry, clean filtering এবং recent ledger card সহ native finance style expense screen।') }}</p>
+            </div>
+            <div class="toolbar pocket-head-actions">
+                <a class="link-btn" href="{{ url_for('money_center') }}"><i class="fa-solid fa-house"></i>{{ txt('Back Home', 'হোমে ফিরুন') }}</a>
+            </div>
+        </div>
+
+        <div class="pocket-balance-hero pocket-expense-balance">
+            <div class="pocket-balance-main">
+                <span>{{ txt('Approved Expense Total', 'Approved খরচ টোটাল') }}</span>
+                <strong class="text-danger">{{ expense_totals.approved_total|money }}</strong>
+                <small>{{ txt('This range approved expense count for your personal ledger.', 'এই range-এর approved personal expense total।') }}</small>
+            </div>
+            <div class="pocket-balance-grid">
+                <article>
+                    <span>{{ txt('Pending', 'পেন্ডিং') }}</span>
+                    <strong>{{ expense_totals.pending_total|money }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('Rejected', 'রিজেক্টেড') }}</span>
+                    <strong>{{ expense_totals.rejected_total|money }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('From', 'শুরু') }}</span>
+                    <strong>{{ date_from }}</strong>
+                </article>
+                <article>
+                    <span>{{ txt('To', 'শেষ') }}</span>
+                    <strong>{{ date_to }}</strong>
+                </article>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="panel money-card pocket-expense-entry-card" id="expense-form-card">
+        <div class="panel-head pocket-entry-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Fast Input', 'ফাস্ট ইনপুট') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-pen-to-square"></i>{{ txt('New Expense', 'নতুন খরচ') }}</h3>
+            </div>
+            <div class="toolbar">
+                <a class="link-btn" href="{{ url_for('reports', preset='month') }}"><i class="fa-solid fa-chart-line"></i>{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="form-grid money-form-grid pocket-native-form pocket-expense-form">
+            <input type="hidden" name="action" value="add_expense">
+            <input type="hidden" name="branch_id" value="{{ default_branch_id }}">
+            {% if is_admin_user %}
+            <input type="hidden" name="auto_approve" value="1">
+            {% endif %}
+
+            <label class="pocket-amount-field full">
+                <span>{{ txt('Amount', 'টাকার পরিমাণ') }}</span>
+                <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required>
+                <small>{{ txt('Start with amount for faster expense entry.', 'দ্রুত expense entry-এর জন্য amount দিয়ে শুরু করুন।') }}</small>
+            </label>
+
+            <label>
+                {{ txt('Date', 'তারিখ') }}
+                <input type="date" name="expense_date" value="{{ date_to }}" required>
+            </label>
+            <label>
+                {{ txt('Category', 'ক্যাটাগরি') }}
+                <select name="category" required>
+                    {% for cat in expense_category_options %}
+                    <option value="{{ cat.key }}">{{ txt(cat.label_en, cat.label_bn) }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ txt('Payment Method', 'পেমেন্ট মেথড') }}
+                <select name="payment_method" required>
+                    {% for method in expense_methods %}
+                    <option value="{{ method }}">{{ method }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ txt('Receipt Photo', 'রিসিপ্ট ছবি') }}
+                <input type="file" name="receipt_photo" accept="image/*">
+            </label>
+            <label class="full">
+                {{ txt('Note', 'নোট') }}
+                <textarea name="note" rows="3" placeholder="{{ txt('Write short details here', 'এখানে ছোট করে বিস্তারিত লিখুন') }}"></textarea>
+            </label>
+            <div class="form-actions full pocket-entry-actions">
+                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Expense', 'খরচ সেভ করুন') }}</button>
+                <a class="btn-secondary" href="#expense-ledger"><i class="fa-solid fa-list"></i>{{ txt('Recent Ledger', 'সাম্প্রতিক লেজার') }}</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel pocket-expense-filter-card">
+        <div class="panel-head pocket-entry-head pocket-filter-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Filter', 'ফিল্টার') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-sliders"></i>{{ txt('Expense View Filter', 'এক্সপেন্স ভিউ ফিল্টার') }}</h3>
+            </div>
+        </div>
+        <form method="get" class="expenses2-filter-bar pocket-native-form pocket-expense-filter-form">
+            <input type="hidden" name="branch_id" value="{{ default_branch_id }}">
+            <label>
+                {{ txt('From', 'শুরু') }}
+                <input type="date" name="date_from" value="{{ date_from }}" required>
+            </label>
+            <label>
+                {{ txt('To', 'শেষ') }}
+                <input type="date" name="date_to" value="{{ date_to }}" required>
+            </label>
+            <label>
+                {{ txt('Status', 'স্ট্যাটাস') }}
+                <select name="status">
+                    <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>{{ txt('All', 'সব') }}</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>{{ txt('Pending', 'Pending') }}</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>{{ txt('Approved', 'Approved') }}</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>{{ txt('Rejected', 'Rejected') }}</option>
+                </select>
+            </label>
+            <div class="expenses2-filter-actions">
+                <button type="submit"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Apply Filter', 'ফিল্টার চালু করুন') }}</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel pocket-expense-ledger-card" id="expense-ledger">
+        <div class="panel-head pocket-entry-head">
+            <div>
+                <span class="pocket-section-kicker">{{ txt('Recent Activity', 'সাম্প্রতিক অ্যাক্টিভিটি') }}</span>
+                <h3 class="section-title"><i class="fa-solid fa-list"></i>{{ txt('Expense Ledger', 'এক্সপেন্স লেজার') }}</h3>
+            </div>
+            <div class="toolbar">
+                <a class="link-btn" href="{{ url_for('reports', preset='month') }}#ledgerCard"><i class="fa-solid fa-arrow-up-right-from-square"></i>{{ txt('Open Full Ledger', 'পুরো লেজার খুলুন') }}</a>
+            </div>
+        </div>
+        <div class="pocket-expense-ledger-stack">
+            {% for row in expenses_rows[:14] %}
+            <article class="pocket-expense-ledger-row {{ row.approval_status|lower }}">
+                <header>
+                    <div>
+                        <strong>{{ category_label('expense', row.category) }}</strong>
+                        <small>{{ row.expense_date }}</small>
+                    </div>
+                    <span class="amount negative">{{ row.amount|money }}</span>
+                </header>
+                <div class="reports2-ledger-meta pocket-native-meta">
+                    <span>{{ row.payment_method }}</span>
+                    <span>{{ row.approval_status }}</span>
+                    <span>{{ txt('By', 'By') }}: {{ row.entered_by_username or '-' }}</span>
+                </div>
+                {% if row.note %}
+                <p>{{ row.note }}</p>
+                {% endif %}
+                <div class="pocket-ledger-row-actions">
+                    {% if row.receipt_path %}
+                    <a class="btn-secondary pocket-ledger-link" target="_blank" rel="noopener" href="{{ url_for('expense_receipt', filename=row.receipt_path) }}"><i class="fa-solid fa-image"></i>{{ txt('Receipt', 'রিসিপ্ট') }}</a>
+                    {% endif %}
+                    {% if is_admin_user and row.approval_status == 'PENDING' %}
+                    <form method="post" action="{{ url_for('expense_approve', expense_id=row.id) }}">
+                        <button type="submit"><i class="fa-solid fa-circle-check"></i>{{ txt('Approve', 'Approve') }}</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('expense_delete', expense_id=row.id) }}" onsubmit="return confirm('{{ txt('Delete this wrong expense entry?', 'এই ভুল expense entry ডিলিট করবেন?') }}');">
+                        <input type="hidden" name="next" value="{{ request.full_path[:-1] if request.full_path.endswith('?') else request.full_path }}">
+                        <button type="submit" class="btn-danger pocket-delete-btn"><i class="fa-solid fa-trash"></i>{{ txt('Delete', 'ডিলিট') }}</button>
+                    </form>
+                </div>
+            </article>
+            {% else %}
+            <div class="pocket-empty-note">
+                <strong>{{ txt('No expense found yet.', 'এখনও কোনো expense পাওয়া যায়নি।') }}</strong>
+                <p>{{ txt('Add your first expense from the form above. It will appear here as a clean mobile card.', 'উপরের form থেকে প্রথম expense add করুন। তারপর এটি এখানে clean mobile card হিসেবে দেখাবে।') }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel module-page-tools no-print">
+        <div class="module-page-tools-copy">
+            <h4><i class="fa-solid fa-receipt"></i>{{ txt('Expense Tools', 'এক্সপেন্স টুলস') }}</h4>
+            <p>{{ txt('Expense page keeps only expense actions. Other shortcuts stay in home or more.', 'Expense page-এ শুধু expense action রাখা হয়েছে। অন্য shortcut home বা more-এ থাকবে।') }}</p>
+        </div>
+        <div class="module-page-tools-actions">
+            <a class="link-btn" href="{{ url_for('reports', preset='month') }}#ledgerCard"><i class="fa-solid fa-list"></i>{{ txt('Open Full Ledger', 'পুরো লেজার খুলুন') }}</a>
+            <a class="btn-secondary" href="{{ url_for('money_center') }}"><i class="fa-solid fa-house"></i>{{ txt('Back Home', 'হোমে ফিরুন') }}</a>
+        </div>
+    </section>
+</section>
+{% else %}
+<section class="panel expenses2-head">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-wallet"></i>{{ txt('Daily Expense Module (A to Z)', 'ডেইলি এক্সপেন্স মডিউল (A to Z)') }}</h3>
+        <div class="toolbar">
+            <a class="link-btn" href="{{ url_for('reports', preset='custom', date_from=date_from, date_to=date_to, branch_id=branch_filter, module='ALL', sale_type='ALL') }}"><i class="fa-solid fa-chart-line"></i>{{ txt('Open Profit Reports 2.0', 'প্রফিট রিপোর্টস 2.0 খুলুন') }}</a>
+        </div>
+    </div>
+    <p class="muted-text">{{ txt('User can add expense, admin can approve. Net profit only counts approved expenses.', 'ইউজার খরচ এন্ট্রি করবে, অ্যাডমিন approve করলে তবেই net profit-এ যাবে।') }}</p>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-plus"></i>{{ txt('Add Expense', 'খরচ যোগ করুন') }}</h3>
+    <form method="post" enctype="multipart/form-data" class="form-grid">
+        <input type="hidden" name="action" value="add_expense">
+
+        <label>
+            {{ txt('Date', 'তারিখ') }}
+            <input type="date" name="expense_date" value="{{ date_to }}" required>
+        </label>
+
+        {% if is_pocket_module %}
+        <input type="hidden" name="branch_id" value="{{ default_branch_id }}">
+        {% else %}
+        <label>
+            {{ txt('Branch', 'ব্রাঞ্চ') }}
+            <select name="branch_id" required>
+                {% for item in branches %}
+                <option value="{{ item.id }}" {% if branch_filter != 'ALL' and branch_filter == item.id|string %}selected{% elif branch_filter == 'ALL' and item.is_default %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+
+        <label>
+            {{ txt('Category', 'ক্যাটাগরি') }}
+            <select name="category" required>
+                {% for cat in expense_category_options %}
+                <option value="{{ cat.key }}">{{ txt(cat.label_en, cat.label_bn) }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            {{ txt('Amount', 'টাকার পরিমাণ') }}
+            <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required>
+        </label>
+
+        <label>
+            {{ txt('Payment Method', 'পেমেন্ট মেথড') }}
+            <select name="payment_method" required>
+                {% for method in expense_methods %}
+                <option value="{{ method }}">{{ method }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            {{ txt('Receipt Photo', 'রিসিপ্ট ছবি') }}
+            <input type="file" name="receipt_photo" accept="image/*">
+        </label>
+
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <textarea name="note" rows="2" placeholder="{{ txt('Write details here (instead of sub-category)', 'যা লিখতে চান এখানে লিখুন (sub-category এর বদলে)') }}"></textarea>
+        </label>
+
+        {% if is_admin_user and not is_pocket_module %}
+        <label class="inline-check">
+            <input type="checkbox" name="auto_approve" value="1" checked>
+            <span>{{ txt('Approve now (count in report)', 'এখনই approve করুন (রিপোর্টে গণনা হবে)') }}</span>
+        </label>
+
+        <label class="inline-check">
+            <input type="checkbox" name="is_recurring" value="1">
+            <span>{{ txt('Save as recurring (monthly auto-entry)', 'Recurring হিসেবে সেভ করুন (মাসিক auto-entry)') }}</span>
+        </label>
+
+        <label>
+            {{ txt('Recurring Title', 'Recurring শিরোনাম') }}
+            <input type="text" name="recurring_title" placeholder="{{ txt('Example: Office Rent', 'উদাহরণ: Office Rent') }}">
+        </label>
+
+        <label>
+            {{ txt('Recurring Day (1-28)', 'Recurring দিন (1-28)') }}
+            <input type="number" name="recurring_day_of_month" min="1" max="28" value="1">
+        </label>
+        {% endif %}
+
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Expense', 'খরচ সেভ করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-filter"></i>{{ txt('Filter + Summary', 'ফিল্টার + সামারি') }}</h3>
+    </div>
+
+    <form method="get" class="expenses2-filter-bar">
+        <label>
+            {{ txt('From', 'শুরু') }}
+            <input type="date" name="date_from" value="{{ date_from }}" required>
+        </label>
+        <label>
+            {{ txt('To', 'শেষ') }}
+            <input type="date" name="date_to" value="{{ date_to }}" required>
+        </label>
+        {% if is_pocket_module %}
+        <input type="hidden" name="branch_id" value="{{ default_branch_id }}">
+        {% else %}
+        <label>
+            {{ txt('Branch', 'ব্রাঞ্চ') }}
+            <select name="branch_id">
+                <option value="ALL" {% if branch_filter == 'ALL' %}selected{% endif %}>{{ txt('All Branches', 'সব ব্রাঞ্চ') }}</option>
+                {% for item in branches %}
+                <option value="{{ item.id }}" {% if branch_filter == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+        <label>
+            {{ txt('Status', 'স্ট্যাটাস') }}
+            <select name="status">
+                <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>{{ txt('All', 'সব') }}</option>
+                <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>{{ txt('Pending', 'Pending') }}</option>
+                <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>{{ txt('Approved', 'Approved') }}</option>
+                <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>{{ txt('Rejected', 'Rejected') }}</option>
+            </select>
+        </label>
+        <div class="expenses2-filter-actions">
+            <button type="submit"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Apply', 'প্রয়োগ') }}</button>
+        </div>
+    </form>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <span><i class="fa-solid fa-circle-check"></i>{{ txt('Approved Expense', 'Approved খরচ') }}</span>
+            <h2>{{ expense_totals.approved_total|money }}</h2>
+            <small>{{ txt('Counts in net profit', 'Net profit-এ গণনা হয়') }}</small>
+        </article>
+        <article class="metric-card">
+            <span><i class="fa-solid fa-hourglass-half"></i>{{ txt('Pending Approval', 'Pending Approval') }}</span>
+            <h2>{{ expense_totals.pending_total|money }}</h2>
+            <small>{{ txt('Needs admin approval', 'Admin approval প্রয়োজন') }}</small>
+        </article>
+        <article class="metric-card">
+            <span><i class="fa-solid fa-circle-xmark"></i>{{ txt('Rejected', 'Rejected') }}</span>
+            <h2>{{ expense_totals.rejected_total|money }}</h2>
+            <small>{{ txt('Not counted in reports', 'রিপোর্টে গণনা হয় না') }}</small>
+        </article>
+    </div>
+</section>
+
+{% if not is_pocket_module %}
+<section class="panel">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-user-clock"></i>{{ txt('Employee Advance Summary', 'এমপ্লয়ি অ্যাডভান্স সামারি') }}</h3>
+    </div>
+    <p class="muted-text">{{ txt('Shows who took how much advance in selected date range.', 'নির্বাচিত সময়ে কে কত অ্যাডভান্স নিয়েছে তা দেখায়।') }}</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Employee', 'এমপ্লয়ি') }}</th>
+                    <th>{{ txt('Entries', 'এন্ট্রি') }}</th>
+                    <th>{{ txt('Approved', 'Approved') }}</th>
+                    <th>{{ txt('Pending', 'Pending') }}</th>
+                    <th>{{ txt('Total', 'মোট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in employee_advances %}
+                <tr>
+                    <td>{{ row.employee_name or '-' }}</td>
+                    <td>{{ row.entry_count }}</td>
+                    <td>{{ row.approved_amount|money }}</td>
+                    <td>{{ row.pending_amount|money }}</td>
+                    <td><strong>{{ row.total_amount|money }}</strong></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">{{ txt('No advance data in selected range.', 'নির্বাচিত সময়ে কোনো অ্যাডভান্স ডাটা নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if is_admin_user and not is_pocket_module %}
+<section class="split">
+    <article class="panel">
+        <h3 class="section-title"><i class="fa-solid fa-arrows-spin"></i>{{ txt('Recurring Expense Templates', 'Recurring Expense Templates') }}</h3>
+        <p class="muted-text">{{ txt('Monthly rent/salary can auto-generate on selected day.', 'মাসিক rent/salary নির্ধারিত দিনে auto-generate হবে।') }}</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>{{ txt('Title', 'শিরোনাম') }}</th>
+                    <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                    <th>{{ txt('Amount', 'পরিমাণ') }}</th>
+                    <th>{{ txt('Branch', 'ব্রাঞ্চ') }}</th>
+                    <th>{{ txt('Day', 'দিন') }}</th>
+                        <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                        <th>{{ txt('Action', 'অ্যাকশন') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                        {% for item in recurring_templates %}
+                    <tr>
+                        <td>{{ item.title }}</td>
+                        <td>{{ category_label('expense', item.category) }}</td>
+                        <td>{{ item.amount|money }}</td>
+                        <td>{{ item.branch_id }}</td>
+                        <td>{{ item.day_of_month }}</td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge stock">ACTIVE</span>
+                            {% else %}
+                            <span class="badge due">OFF</span>
+                            {% endif %}
+                            {% if item.last_generated_month %}<small>{{ txt('Last', 'শেষ') }}: {{ item.last_generated_month }}</small>{% endif %}
+                        </td>
+                        <td>
+                            <form method="post">
+                                <input type="hidden" name="action" value="toggle_recurring">
+                                <input type="hidden" name="template_id" value="{{ item.id }}">
+                                <button type="submit" class="btn-secondary">
+                                    {% if item.is_active %}{{ txt('Disable', 'বন্ধ করুন') }}{% else %}{{ txt('Enable', 'চালু করুন') }}{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7">{{ txt('No recurring template yet.', 'এখনও recurring template নেই।') }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <h3 class="section-title"><i class="fa-solid fa-cash-register"></i>{{ txt('Petty Cash', 'Petty Cash') }}</h3>
+        <p class="muted-text">{{ txt('Cashflow = Cash Sale + Due Collection - Cash Expense', 'Cashflow = Cash Sale + Due Collection - Cash Expense') }}</p>
+
+        <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="save_petty">
+
+            <label>
+                {{ txt('Date', 'তারিখ') }}
+                <input type="date" name="petty_date" value="{{ petty_date }}" required>
+            </label>
+            <label>
+                {{ txt('Branch', 'ব্রাঞ্চ') }}
+                <select name="petty_branch_id" required>
+                    {% for item in branches %}
+                    <option value="{{ item.id }}" {% if petty_branch_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ txt('Opening Cash', 'Opening Cash') }}
+                <input type="number" step="0.01" min="0" name="opening_cash" value="{{ petty_row.opening_cash if petty_row else 0 }}" required>
+            </label>
+            <label>
+                {{ txt('Closing Cash', 'Closing Cash') }}
+                <input type="number" step="0.01" min="0" name="closing_cash" value="{{ petty_row.closing_cash if petty_row else 0 }}" required>
+            </label>
+            <label class="span-2">
+                {{ txt('Note', 'নোট') }}
+                <textarea name="petty_note" rows="2">{{ petty_row.note if petty_row else '' }}</textarea>
+            </label>
+            <div class="form-actions span-2">
+                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Petty Cash', 'Petty Cash সেভ করুন') }}</button>
+            </div>
+        </form>
+
+        <div class="metric-grid top-gap">
+            <article class="metric-card"><span>{{ txt('Cash Sale', 'Cash Sale') }}</span><h2>{{ cash_sale|money }}</h2></article>
+            <article class="metric-card"><span>{{ txt('Due Collection', 'Due Collection') }}</span><h2>{{ due_collection|money }}</h2></article>
+            <article class="metric-card"><span>{{ txt('Cash Expense', 'Cash Expense') }}</span><h2>{{ cash_expense|money }}</h2></article>
+            <article class="metric-card"><span>{{ txt('Expected Closing', 'Expected Closing') }}</span><h2>{{ expected_closing|money }}</h2></article>
+            <article class="metric-card"><span>{{ txt('Difference', 'পার্থক্য') }}</span><h2 class="{% if shortage_overage < 0 %}text-danger{% else %}text-ok{% endif %}">{{ shortage_overage|money }}</h2><small>{% if shortage_overage < 0 %}{{ txt('Shortage', 'ঘাটতি') }}{% else %}{{ txt('Overage / OK', 'বেশি / ঠিক আছে') }}{% endif %}</small></article>
+        </div>
+    </article>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-list"></i>{{ txt('Expense Ledger', 'Expense Ledger') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                    <th>{{ txt('Amount', 'পরিমাণ') }}</th>
+                    <th>{{ txt('Payment', 'পেমেন্ট') }}</th>
+                    <th>{{ txt('Branch', 'ব্রাঞ্চ') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('By', 'যিনি') }}</th>
+                    <th>{{ txt('Receipt', 'রিসিপ্ট') }}</th>
+                    <th>{{ txt('Actions', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in expenses_rows %}
+                <tr>
+                    <td>{{ row.expense_date }}</td>
+                    <td>
+                        {{ category_label('expense', row.category) }}
+                        {% if row.note %}<small>{{ row.note }}</small>{% endif %}
+                    </td>
+                    <td>{{ row.amount|money }}</td>
+                    <td>{{ row.payment_method }}</td>
+                    <td>{{ row.branch_name or ('Branch ' ~ row.branch_id) }}</td>
+                    <td>
+                        {% if row.approval_status == 'APPROVED' %}
+                        <span class="badge stock">APPROVED</span>
+                        {% elif row.approval_status == 'REJECTED' %}
+                        <span class="badge due">REJECTED</span>
+                        {% else %}
+                        <span class="badge sold">PENDING</span>
+                        {% endif %}
+                        {% if row.rejected_note %}<small>{{ txt('Reason', 'কারণ') }}: {{ row.rejected_note }}</small>{% endif %}
+                    </td>
+                    <td>
+                        {{ row.entered_by_username or '-' }}
+                        {% if row.approved_by_username %}<small>{{ txt('Approved by', 'Approve করেছেন') }}: {{ row.approved_by_username }}</small>{% endif %}
+                    </td>
+                    <td>
+                        {% if row.receipt_path %}
+                        <a class="link-btn" target="_blank" rel="noopener" href="{{ url_for('expense_receipt', filename=row.receipt_path) }}"><i class="fa-solid fa-image"></i>{{ txt('View', 'দেখুন') }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="expenses2-row-actions">
+                            {% if is_admin_user and row.approval_status == 'PENDING' %}
+                            <form method="post" action="{{ url_for('expense_approve', expense_id=row.id) }}">
+                                <button type="submit">{{ txt('Approve', 'Approve') }}</button>
+                            </form>
+                            <form method="post" action="{{ url_for('expense_reject', expense_id=row.id) }}" class="inline-form">
+                                <input type="text" name="rejected_note" placeholder="{{ txt('Reject note', 'Reject note') }}">
+                                <button type="submit" class="btn-danger">{{ txt('Reject', 'Reject') }}</button>
+                            </form>
+                            {% endif %}
+                            <form method="post" action="{{ url_for('expense_delete', expense_id=row.id) }}">
+                                <button type="submit" class="btn-secondary">{{ txt('Delete', 'Delete') }}</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">{{ txt('No expense found for selected filter.', 'নির্বাচিত ফিল্টারে কোনো খরচ পাওয়া যায়নি।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

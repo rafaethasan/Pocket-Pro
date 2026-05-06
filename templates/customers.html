@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Wholesale Shops | Soft X{% endblock %}
+{% block content %}
+{% set ws = namespace(total_sales=0, total_profit=0, total_due=0, total_units=0) %}
+{% for c in customers %}
+    {% set ws.total_sales = ws.total_sales + (c.sales_amount or 0) %}
+    {% set ws.total_profit = ws.total_profit + (c.profit_amount or 0) %}
+    {% set ws.total_due = ws.total_due + (c.due_amount or 0) %}
+    {% set ws.total_units = ws.total_units + (c.sold_units or 0) %}
+{% endfor %}
+<section class="panel hero-panel partner-hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('Partner Desk', 'পার্টনার ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-store"></i>{{ txt('Wholesale Shop Control', 'হোলসেল শপ কন্ট্রোল') }}</h3>
+            <p class="muted-text">{{ txt('Maintain wholesale shop address book, due exposure and day-to-lifetime ledger from one clean workspace.', 'একটি clean workspace থেকে wholesale shop address book, due exposure এবং day-to-lifetime ledger ম্যানেজ করুন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="{{ url_for('sales') }}"><i class="fa-solid fa-cart-shopping"></i>{{ txt('Open Wholesale Sale', 'হোলসেল সেল') }}</a>
+            <a class="btn-secondary" href="{{ url_for('reports') }}"><i class="fa-solid fa-chart-pie"></i>{{ txt('Open Reports', 'রিপোর্ট') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#wholesale-shop-add" class="module-focus-card">
+        <i class="fa-solid fa-store"></i>
+        <strong>{{ txt('Add Shop', 'শপ যোগ') }}</strong>
+        <span>{{ txt('Create new partner', 'নতুন হোলসেল পার্টনার') }}</span>
+    </a>
+    <a href="#wholesale-ledger" class="module-focus-card">
+        <i class="fa-solid fa-book-open"></i>
+        <strong>{{ txt('Ledger', 'লেজার') }}</strong>
+        <span>{{ txt('Lifetime shop summary', 'লাইফটাইম শপ হিসাব') }}</span>
+    </a>
+    <a href="{{ url_for('sales') }}" class="module-focus-card">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <strong>{{ txt('Wholesale Sale', 'হোলসেল সেল') }}</strong>
+        <span>{{ txt('Open dispatch flow', 'সেল/ডেলিভারি খুলুন') }}</span>
+    </a>
+    <a href="{{ url_for('reports') }}" class="module-focus-card">
+        <i class="fa-solid fa-chart-pie"></i>
+        <strong>{{ txt('Reports', 'রিপোর্ট') }}</strong>
+        <span>{{ txt('Due and profit insight', 'due ও profit insight') }}</span>
+    </a>
+</section>
+
+<section class="metric-grid partner-summary-grid">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-store"></i>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span>
+        <h2>{{ customers|length }}</h2>
+        <small>{{ txt('Active partner ledger profiles', 'active partner ledger profile') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-boxes-stacked"></i>{{ txt('Units Sold', 'সেল ইউনিট') }}</span>
+        <h2>{{ ws.total_units }}</h2>
+        <small>{{ txt('Lifetime wholesale dispatched units', 'lifetime wholesale dispatched units') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ txt('Sales Amount', 'মোট বিক্রয়') }}</span>
+        <h2>{{ ws.total_sales|money }}</h2>
+        <small>{{ txt('Lifetime wholesale value', 'lifetime wholesale value') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-chart-line"></i>{{ txt('Profit', 'প্রফিট') }}</span>
+        <h2>{{ ws.total_profit|money }}</h2>
+        <small>{{ txt('Realized wholesale profit', 'realized wholesale profit') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-hourglass-half"></i>{{ txt('Due Exposure', 'বকেয়া ঝুঁকি') }}</span>
+        <h2>{{ ws.total_due|money }}</h2>
+        <small>{{ txt('Outstanding due from partner shops', 'partner shop due outstanding') }}</small>
+    </article>
+</section>
+
+<section class="panel" id="wholesale-shop-add">
+    <h3 class="section-title"><i class="fa-solid fa-store"></i>{{ txt('Wholesale Shop Add', 'হোলসেল শপ যোগ করুন') }}</h3>
+    <form method="post" class="form-grid">
+        <label>
+            {{ txt('Shop Name', 'শপ নাম') }} *
+            <input type="text" name="shop_name" required placeholder="Rahim Telecom">
+        </label>
+        <label>
+            {{ txt('Owner Name', 'মালিকের নাম') }}
+            <input type="text" name="owner_name" placeholder="Owner Name">
+        </label>
+        <label>
+            {{ txt('Phone', 'ফোন') }}
+            <input type="text" name="phone" placeholder="01XXXXXXXXX">
+        </label>
+        <label>
+            {{ txt('Area', 'এরিয়া') }}
+            <input type="text" name="area" placeholder="Elephant Road">
+        </label>
+        <label class="span-2">
+            {{ txt('Address', 'ঠিকানা') }}
+            <input type="text" name="address" placeholder="Full Address">
+        </label>
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="note" placeholder="Optional">
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-shop"></i>{{ txt('Save Wholesale Shop', 'হোলসেল শপ সেভ করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel" id="wholesale-ledger">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-address-book"></i>{{ txt('Wholesale Shop Ledger (Lifetime)', 'হোলসেল শপ লেজার (লাইফটাইম)') }}</h3>
+        <span class="badge stock">{{ customers|length }} {{ txt('shops', 'শপ') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Shop', 'শপ') }}</th>
+                    <th>{{ txt('Phone', 'ফোন') }}</th>
+                    <th>{{ txt('Units', 'ইউনিট') }}</th>
+                    <th>{{ txt('Sales Amount', 'মোট বিক্রয়') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Actions', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td>{{ c.shop_name }}</td>
+                    <td>{{ c.phone or "-" }}</td>
+                    <td>{{ c.sold_units }}</td>
+                    <td>{{ c.sales_amount|money }}</td>
+                    <td>{{ c.profit_amount|money }}</td>
+                    <td>{{ c.due_amount|money }}</td>
+                    <td>
+                        <a class="link-btn" href="{{ url_for('customer_detail', customer_id=c.id) }}"><i class="fa-solid fa-arrow-up-right-from-square"></i>{{ txt('Day/Month/Year/Lifetime', 'দিন/মাস/বছর/লাইফটাইম') }}</a>
+                        <br>
+                        <a class="link-btn" href="{{ url_for('customer_day_invoice', customer_id=c.id, sale_date=today) }}"><i class="fa-solid fa-receipt"></i>{{ txt('Today Invoice', 'আজকের ইনভয়েস') }}</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">{{ txt('No wholesale shop found', 'কোনো হোলসেল শপ নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-store"></i>{{ txt('Wholesale Shop Tools', 'হোলসেল শপ টুলস') }}</h4>
+        <p>{{ txt('Print stays below the ledger so the shop page stays clean and focused.', 'shop page clean ও focused রাখতে print option নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Ledger', 'লেজার প্রিন্ট') }}</button>
+    </div>
+</section>
+{% endblock %}

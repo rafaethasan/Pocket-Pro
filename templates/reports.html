@@ -1,0 +1,751 @@
+{% extends "base.html" %}
+{% block title %}Profit Reports 2.0 | Soft X{% endblock %}
+{% block content %}
+{% set reports_mobile_view = request.args.get('rview', 'overview') %}
+{% set reports_mobile_screen = request.args.get('mscreen', 'detail') %}
+<section class="enterprise-report-shell reports-mobile-view-{{ reports_mobile_view }}">
+<section class="reports-native-menu-screen no-print {% if reports_mobile_screen != 'menu' %}is-hidden{% endif %}">
+    <div class="reports-native-menu-hero">
+        <h2>{{ txt('Reports', 'রিপোর্টস') }}</h2>
+    </div>
+    <div class="reports-native-menu-card">
+        <a class="reports-native-menu-link" href="{{ url_for('reports', mscreen='detail', rview='overview', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter) }}">
+            <span class="icon tone-green"><i class="fa-solid fa-chart-line"></i></span>
+            <span>{{ txt('Sales Report', 'সেলস রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('products', pview='inventory') }}">
+            <span class="icon tone-violet"><i class="fa-solid fa-bag-shopping"></i></span>
+            <span>{{ txt('Purchase Report', 'পারচেজ রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('due_list') }}">
+            <span class="icon tone-amber"><i class="fa-solid fa-money-bill-trend-up"></i></span>
+            <span>{{ txt('Due Report', 'Due রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('due_list', dview='collected') }}">
+            <span class="icon tone-cyan"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+            <span>{{ txt('Due Collection', 'Due কালেকশন') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('stock_report', stview='details') }}">
+            <span class="icon tone-indigo"><i class="fa-solid fa-boxes-stacked"></i></span>
+            <span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('reports', mscreen='detail', rview='overview', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter) }}">
+            <span class="icon tone-blue"><i class="fa-solid fa-chart-pie"></i></span>
+            <span>{{ txt('Loss/Profit Report', 'লস/প্রফিট রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('reports', mscreen='detail', rview='trend', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter) }}">
+            <span class="icon tone-mint"><i class="fa-solid fa-sack-dollar"></i></span>
+            <span>{{ txt('Income Report', 'ইনকাম রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('expenses') }}">
+            <span class="icon tone-rose"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            <span>{{ txt('Expenses Report', 'এক্সপেন্স রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('returns') }}">
+            <span class="icon tone-sky"><i class="fa-solid fa-rotate-left"></i></span>
+            <span>{{ txt('Sales Return Report', 'সেলস রিটার্ন রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+        <a class="reports-native-menu-link" href="{{ url_for('suppliers') }}">
+            <span class="icon tone-lilac"><i class="fa-solid fa-truck-ramp-box"></i></span>
+            <span>{{ txt('Purchase Return Report', 'পারচেজ রিটার্ন রিপোর্ট') }}</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    </div>
+</section>
+
+{% if reports_mobile_screen != 'menu' %}
+<section class="reports-native-detail-top no-print">
+    <a class="reports-native-detail-back" href="{{ url_for('reports', mscreen='menu') }}">
+        <i class="fa-solid fa-chevron-left"></i>
+        <span>{{ txt('Back To Reports', 'রিপোর্টে ফিরুন') }}</span>
+    </a>
+</section>
+<div class="reports-native-detail-shell">
+<section class="panel reports2-filter-panel reports2-hero-panel" id="reportTop">
+    <div class="reports2-hero-top">
+        <div class="reports2-hero-copy">
+            <span class="reports2-hero-kicker">{{ txt('Analytics Studio', 'অ্যানালিটিক্স স্টুডিও') }}</span>
+            <h2>{{ txt('Profit Reports 2.0', 'প্রফিট রিপোর্টস 2.0') }}</h2>
+            <p>{{ txt('A dark command view for revenue, profit, expense, due risk and partner intelligence.', 'revenue, profit, expense, due risk ও partner intelligence দেখার dark command view।') }}</p>
+        </div>
+        <div class="toolbar reports2-head-actions reports2-hero-actions">
+            <a class="link-btn" href="{{ url_for('reports_export_csv', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+            <a class="link-btn alt" href="{{ url_for('reports', rview=reports_mobile_view, mscreen=reports_mobile_screen) }}"><i class="fa-solid fa-rotate-right"></i>{{ txt('Reset All Filters', 'সব ফিল্টার রিসেট') }}</a>
+        </div>
+    </div>
+
+    <div class="reports2-hero-tabs">
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='overview', mscreen=reports_mobile_screen) }}#overviewCards" class="{% if reports_mobile_view == 'overview' %}active{% endif %}">{{ txt('Overview', 'ওভারভিউ') }}</a>
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='contribution', mscreen=reports_mobile_screen) }}#contributionView" class="{% if reports_mobile_view == 'contribution' %}active{% endif %}">{{ txt('Contribution', 'কন্ট্রিবিউশন') }}</a>
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='partner', mscreen=reports_mobile_screen) }}#partnerView" class="{% if reports_mobile_view == 'partner' %}active{% endif %}">{{ txt('Partners', 'পার্টনার') }}</a>
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='trend', mscreen=reports_mobile_screen) }}#trendView" class="{% if reports_mobile_view == 'trend' %}active{% endif %}">{{ txt('Trend', 'ট্রেন্ড') }}</a>
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='risk', mscreen=reports_mobile_screen) }}#riskView" class="{% if reports_mobile_view == 'risk' %}active{% endif %}">{{ txt('Risk Watch', 'রিস্ক ওয়াচ') }}</a>
+        <a href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview='drill', mscreen=reports_mobile_screen) }}#drilldownView" class="{% if reports_mobile_view == 'drill' %}active{% endif %}">{{ txt('Drill-down', 'ড্রিল-ডাউন') }}</a>
+    </div>
+
+    <div class="reports2-context-grid">
+        <article>
+            <span>{{ txt('Range', 'রেঞ্জ') }}</span>
+            <strong>{{ date_from }} → {{ date_to }}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Branch', 'ব্রাঞ্চ') }}</span>
+            <strong>{% if branch_filter == 'ALL' %}{{ txt('All Branches', 'সব ব্রাঞ্চ') }}{% else %}{% for item in branches %}{% if branch_filter == item.id|string %}{{ item.name }}{% endif %}{% endfor %}{% endif %}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Module', 'মডিউল') }}</span>
+            <strong>{% for item in module_options %}{% if module_filter == item.key %}{{ txt(item.label_en, item.label_bn) }}{% endif %}{% endfor %}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Sales Type', 'সেল টাইপ') }}</span>
+            <strong>{% if sale_type_filter == 'ALL' %}{{ txt('All', 'সব') }}{% elif sale_type_filter == 'WHOLESALE' %}{{ txt('Wholesale', 'হোলসেল') }}{% else %}{{ txt('Retail POS', 'রিটেইল POS') }}{% endif %}</strong>
+        </article>
+    </div>
+
+    <div class="reports2-hero-snapshot-grid">
+        <article>
+            <span>{{ txt('Revenue', 'রেভিনিউ') }}</span>
+            <strong>{{ selected_metrics.revenue|money }}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Net Profit', 'নেট প্রফিট') }}</span>
+            <strong>{{ selected_metrics.net_profit|money }}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Expense', 'খরচ') }}</span>
+            <strong>{{ selected_metrics.expense|money }}</strong>
+        </article>
+        <article>
+            <span>{{ txt('Due Outstanding', 'Due বকেয়া') }}</span>
+            <strong>{{ selected_metrics.due_outstanding|money }}</strong>
+        </article>
+    </div>
+
+    <form method="get" class="reports2-filter-bar">
+        <input type="hidden" name="preset" value="custom">
+        <input type="hidden" name="rview" value="{{ reports_mobile_view }}">
+        <input type="hidden" name="mscreen" value="{{ reports_mobile_screen }}">
+
+        <label>
+            {{ txt('Date From', 'শুরুর তারিখ') }}
+            <input type="date" name="date_from" value="{{ date_from }}" required>
+        </label>
+
+        <label>
+            {{ txt('Date To', 'শেষ তারিখ') }}
+            <input type="date" name="date_to" value="{{ date_to }}" required>
+        </label>
+
+        <label>
+            {{ txt('Branch', 'ব্রাঞ্চ') }}
+            <select name="branch_id">
+                <option value="ALL" {% if branch_filter == 'ALL' %}selected{% endif %}>{{ txt('All Branches', 'সব ব্রাঞ্চ') }}</option>
+                {% for item in branches %}
+                <option value="{{ item.id }}" {% if branch_filter == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            {{ txt('Business Module', 'বিজনেস মডিউল') }}
+            <select name="module">
+                {% for item in module_options %}
+                <option value="{{ item.key }}" {% if module_filter == item.key %}selected{% endif %}>{{ txt(item.label_en, item.label_bn) }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            {{ txt('Sales Type', 'সেল টাইপ') }}
+            <select name="sale_type">
+                <option value="ALL" {% if sale_type_filter == 'ALL' %}selected{% endif %}>{{ txt('All', 'সব') }}</option>
+                <option value="WHOLESALE" {% if sale_type_filter == 'WHOLESALE' %}selected{% endif %}>{{ txt('Wholesale', 'হোলসেল') }}</option>
+                <option value="RETAIL" {% if sale_type_filter == 'RETAIL' %}selected{% endif %}>{{ txt('Retail POS', 'রিটেইল POS') }}</option>
+            </select>
+        </label>
+
+        <div class="reports2-filter-submit">
+            <button type="submit"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Apply Filter', 'ফিল্টার চালু করুন') }}</button>
+        </div>
+    </form>
+
+    <div class="reports2-presets">
+        {% for item in quick_range_links %}
+        <a href="{{ url_for('reports', preset=item.preset, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview=reports_mobile_view, mscreen=reports_mobile_screen) }}" class="{% if preset == item.preset %}active{% endif %}">{{ item.label }}</a>
+        {% endfor %}
+        <a href="{{ url_for('reports', preset='lifetime', branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, rview=reports_mobile_view, mscreen=reports_mobile_screen) }}" class="{% if preset == 'lifetime' %}active{% endif %}">{{ txt('Lifetime', 'লাইফটাইম') }}</a>
+    </div>
+
+    <p class="insight-line">{{ txt('Why this matters: One filter bar controls all report blocks, so admin can compare revenue, profit, expense and due risk quickly.', 'Why this matters: একটি filter bar থেকেই সব report block update হবে, তাই admin দ্রুত revenue, profit, expense ও due risk তুলনা করতে পারবেন।') }}</p>
+</section>
+
+<section class="panel reports2-surface reports-mobile-pane reports-pane-overview" id="overviewCards">
+    <h3 class="section-title"><i class="fa-solid fa-table-columns"></i>{{ txt('Executive Cards', 'এক্সিকিউটিভ কার্ড') }}</h3>
+    <div class="reports2-exec-grid">
+        {% set exec_periods = [
+            {'key': 'today', 'en': 'Today', 'bn': 'আজ'},
+            {'key': 'mtd', 'en': 'MTD', 'bn': 'মাস-টু-ডেট'},
+            {'key': 'ytd', 'en': 'YTD', 'bn': 'বছর-টু-ডেট'},
+            {'key': 'lifetime', 'en': 'Lifetime', 'bn': 'লাইফটাইম'}
+        ] %}
+        {% for p in exec_periods %}
+        {% set card = executive_cards[p.key] %}
+        <article class="reports2-exec-card">
+            <header>{{ txt(p.en, p.bn) }}</header>
+            <dl>
+                <div><dt>{{ txt('Revenue', 'রেভিনিউ') }}</dt><dd>{{ card.revenue|money }}</dd></div>
+                <div><dt>{{ txt('Gross Profit', 'গ্রস প্রফিট') }}</dt><dd>{{ card.gross_profit|money }}</dd></div>
+                <div><dt>{{ txt('Expense', 'খরচ') }}</dt><dd>{{ card.expense|money }}</dd></div>
+                <div><dt>{{ txt('Net Profit', 'নেট প্রফিট') }}</dt><dd>{{ card.net_profit|money }}</dd></div>
+                <div><dt>{{ txt('Return Loss', 'রিটার্ন লস') }}</dt><dd>{{ card.return_loss|money }}</dd></div>
+                <div><dt>{{ txt('Due Outstanding', 'Due বকেয়া') }}</dt><dd>{{ card.due_outstanding|money }}</dd></div>
+            </dl>
+        </article>
+        {% endfor %}
+    </div>
+    <p class="insight-line">{{ txt('Why this matters: Gross and Net are separated clearly, so you can see if expense or return is reducing your real profit.', 'Why this matters: Gross আর Net আলাদা দেখা যায়, তাই expense বা return কোনটা আসল profit কমাচ্ছে তা সহজে বোঝা যায়।') }}</p>
+</section>
+
+<section class="split reports2-shell-split reports-mobile-pane reports-pane-overview">
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-layer-group"></i>{{ txt('Section-wise Profit', 'সেকশন-ওয়াইজ প্রফিট') }}</h3>
+        <div id="sectionChart" class="reports2-stack-chart" aria-live="polite"></div>
+        <p class="insight-line">{{ txt('Why this matters: Wholesale, Retail, Return, Due Collection and Expense impact in one chart for faster daily decision.', 'Why this matters: Wholesale, Retail, Return, Due Collection ও Expense একসাথে দেখলে daily decision দ্রুত নেওয়া যায়।') }}</p>
+    </article>
+
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-lightbulb"></i>{{ txt('Decision Snapshot', 'দ্রুত সিদ্ধান্ত স্ন্যাপশট') }}</h3>
+        <div class="reports2-snapshot-grid">
+            <article>
+                <span>{{ txt('Gross Profit', 'গ্রস প্রফিট') }}</span>
+                <strong>{{ selected_metrics.gross_profit|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Approved Expense', 'Approved খরচ') }}</span>
+                <strong>{{ selected_metrics.expense|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Return Loss', 'রিটার্ন লস') }}</span>
+                <strong>{{ selected_metrics.return_loss|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Net Profit', 'নেট প্রফিট') }}</span>
+                <strong>{{ selected_metrics.net_profit|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Cashflow', 'ক্যাশফ্লো') }}</span>
+                <strong>{{ selected_metrics.cashflow|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Due Outstanding', 'Due বকেয়া') }}</span>
+                <strong>{{ selected_metrics.due_outstanding|money }}</strong>
+            </article>
+        </div>
+        <p class="muted-text">{{ txt('Net Profit = Gross Profit - Approved Expenses - Return Loss', 'Net Profit = Gross Profit - Approved Expenses - Return Loss') }}</p>
+        <p class="muted-text">{{ txt('Cashflow = Cash Sale + Due Collection - Cash Expense', 'Cashflow = Cash Sale + Due Collection - Cash Expense') }}</p>
+    </article>
+</section>
+
+<section class="split reports2-shell-split reports-mobile-pane reports-pane-contribution" id="contributionView">
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-chart-pie"></i>{{ txt('Brand Contribution', 'ব্র্যান্ড কন্ট্রিবিউশন') }}</h3>
+        <div class="reports2-donut-wrap">
+            <div id="brandDonut" class="reports2-donut"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Brand', 'ব্র্যান্ড') }}</th>
+                            <th>{{ txt('Revenue', 'রেভিনিউ') }}</th>
+                            <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in brand_profit[:12] %}
+                        <tr>
+                            <td><a class="link-btn" href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, drill_kind='brand', drill_key=row.label) }}">{{ row.label }}</a></td>
+                            <td>{{ row.revenue|money }}</td>
+                            <td>{{ row.profit|money }}</td>
+                            <td>{{ '%.2f'|format(row.profit_ratio) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">{{ txt('No data.', 'ডাটা নেই।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="insight-line">{{ txt('Why this matters: You can instantly see which brand is actually driving profit, not only sales volume.', 'Why this matters: কোন brand শুধু sales নয়, আসল profit দিচ্ছে তা সাথে সাথে বোঝা যায়।') }}</p>
+    </article>
+
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-tags"></i>{{ txt('Category Contribution', 'ক্যাটাগরি কন্ট্রিবিউশন') }}</h3>
+        <div class="reports2-donut-wrap">
+            <div id="categoryDonut" class="reports2-donut"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                            <th>{{ txt('Revenue', 'রেভিনিউ') }}</th>
+                            <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in category_profit[:12] %}
+                        <tr>
+                            <td><a class="link-btn" href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, drill_kind='category', drill_key=row.label) }}">{{ row.label }}</a></td>
+                            <td>{{ row.revenue|money }}</td>
+                            <td>{{ row.profit|money }}</td>
+                            <td>{{ '%.2f'|format(row.profit_ratio) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">{{ txt('No data.', 'ডাটা নেই।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="insight-line">{{ txt('Why this matters: Category-wise mix tells where to increase stock and where to control low-margin inventory.', 'Why this matters: Category-wise mix দেখে কোথায় stock বাড়াবেন আর কোথায় low-margin inventory কমাবেন তা সিদ্ধান্ত নেওয়া যায়।') }}</p>
+    </article>
+</section>
+
+<section class="panel reports2-surface reports-mobile-pane reports-pane-partner" id="partnerView">
+    <h3 class="section-title"><i class="fa-solid fa-store"></i>{{ txt('Partner Profit', 'পার্টনার প্রফিট') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Wholesale Shop', 'হোলসেল শপ') }}</th>
+                    <th>{{ txt('Units', 'ইউনিট') }}</th>
+                    <th>{{ txt('Revenue', 'রেভিনিউ') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th>{{ txt('Due', 'Due') }}</th>
+                    <th>{{ txt('Returns', 'রিটার্ন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in partner_profit[:40] %}
+                <tr>
+                    <td><a class="link-btn" href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter, drill_kind='partner', drill_key=row.label) }}">{{ row.label }}</a></td>
+                    <td>{{ row.units }}</td>
+                    <td>{{ row.revenue|money }}</td>
+                    <td>{{ row.profit|money }}</td>
+                    <td>{{ row.due_amount|money }}</td>
+                    <td>{{ row.returns }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">{{ txt('No wholesale partner transaction in selected range.', 'নির্বাচিত সময়ে wholesale partner transaction নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="insight-line">{{ txt('Why this matters: Shop-wise due and return with profit together helps target risky partners first.', 'Why this matters: Shop-wise due + return + profit একসাথে দেখলে ঝুঁকিপূর্ণ partner আগে handle করা যায়।') }}</p>
+</section>
+
+<section class="split reports2-shell-split reports-mobile-pane reports-pane-trend" id="trendView">
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-chart-area"></i>{{ txt('Trend View', 'ট্রেন্ড ভিউ') }}</h3>
+        <div class="reports2-trend-legend">
+            <span><i class="dot dot-revenue"></i>{{ txt('Revenue', 'রেভিনিউ') }}</span>
+            <span><i class="dot dot-net"></i>{{ txt('Net Profit', 'নেট প্রফিট') }}</span>
+            <span><i class="dot dot-exp"></i>{{ txt('Expense', 'খরচ') }}</span>
+        </div>
+        <canvas id="trendLineChart" class="reports2-line-canvas" height="220"></canvas>
+        <p class="insight-line">{{ txt('Why this matters: Trend detects profit drop early before end-of-month surprise.', 'Why this matters: Trend chart আগেই profit drop ধরতে সাহায্য করে, month-end surprise কমায়।') }}</p>
+    </article>
+
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-calendar-days"></i>{{ txt('Weekday Heatmap', 'সাপ্তাহিক হিটম্যাপ') }}</h3>
+        <div id="weekdayHeatmap" class="reports2-heatmap"></div>
+        <p class="insight-line">{{ txt('Why this matters: Shows which weekday has strongest or weakest cashflow pattern.', 'Why this matters: কোন weekday-এ cashflow বেশি বা কম তা দ্রুত বোঝা যায়।') }}</p>
+    </article>
+</section>
+
+<section class="split reports2-shell-split reports-mobile-pane reports-pane-risk" id="riskView">
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-ranking-star"></i>{{ txt('Top 5 Profitable Section', 'Top 5 লাভজনক সেকশন') }}</h3>
+        <div class="reports2-list-box">
+            {% for item in top_profitable_sections %}
+            <div>
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.net_impact|money }}</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No section data.', 'সেকশন ডাটা নেই।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation"></i>{{ txt('Top 5 Loss Section', 'Top 5 লস সেকশন') }}</h3>
+        <div class="reports2-list-box">
+            {% for item in top_loss_sections %}
+            <div>
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.net_impact|money }}</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No section data.', 'সেকশন ডাটা নেই।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="split reports2-shell-split reports-mobile-pane reports-pane-risk">
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-hand-holding-dollar"></i>{{ txt('High Due Risk Shops', 'High Due Risk Shops') }}</h3>
+        <div class="reports2-list-box">
+            {% for item in high_due_risk_shops %}
+            <div>
+                <strong>{{ item.shop_name }}</strong>
+                <span>{{ item.due_amount|money }}</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No due risk in selected range.', 'নির্বাচিত সময়ে due risk নেই।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel reports2-surface">
+        <h3 class="section-title"><i class="fa-solid fa-rotate"></i>{{ txt('High Return Rate Models', 'High Return Rate Models') }}</h3>
+        <div class="reports2-list-box">
+            {% for item in high_return_rate_models %}
+            <div>
+                <strong>{{ item.model }}</strong>
+                <span>{{ item.return_rate|round(2) }}%</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No return risk model found.', 'রিটার্ন রিস্ক মডেল পাওয়া যায়নি।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="panel reports2-surface reports-mobile-pane reports-pane-risk">
+    <h3 class="section-title"><i class="fa-solid fa-bell"></i>{{ txt('Low Margin Alert (< 3%)', 'Low Margin Alert (< 3%)') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Model', 'মডেল') }}</th>
+                    <th>{{ txt('Units', 'ইউনিট') }}</th>
+                    <th>{{ txt('Revenue', 'রেভিনিউ') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th>{{ txt('Margin', 'মার্জিন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in low_margin_alerts %}
+                <tr>
+                    <td>{{ item.model }}</td>
+                    <td>{{ item.units }}</td>
+                    <td>{{ item.revenue|money }}</td>
+                    <td>{{ item.profit|money }}</td>
+                    <td>{{ item.margin|round(2) }}%</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">{{ txt('No low margin alert right now.', 'এখন low margin alert নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="insight-line">{{ txt('Why this matters: Margin alert under 3% helps prevent silent loss even when sales count looks good.', 'Why this matters: Margin 3% এর নিচে নামলে sales ভালো দেখালেও hidden loss ধরা যায়।') }}</p>
+</section>
+
+<section class="panel reports2-surface reports-mobile-pane reports-pane-drill" id="drilldownView">
+    <h3 class="section-title"><i class="fa-solid fa-magnifying-glass-chart"></i>{{ txt('Drill-down Transactions', 'ড্রিল-ডাউন ট্রানজেকশন') }}</h3>
+    {% if drill_rows %}
+    <p class="muted-text">{{ drill_title }}</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Reference', 'রেফারেন্স') }}</th>
+                    <th>{{ txt('Type', 'টাইপ') }}</th>
+                    <th>{{ txt('Party', 'পার্টি') }}</th>
+                    <th>{{ txt('Revenue Impact', 'Revenue Impact') }}</th>
+                    <th>{{ txt('Profit Impact', 'Profit Impact') }}</th>
+                    <th>{{ txt('Note', 'নোট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in drill_rows %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.ref }}</td>
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.party }}</td>
+                    <td>{{ row.revenue|money }}</td>
+                    <td>{{ row.profit|money }}</td>
+                    <td>{{ row.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted-text">{{ txt('Click a chart/table item to open transaction details here.', 'চার্ট/টেবিলের যেকোনো আইটেমে click করলে নিচে transaction details দেখাবে।') }}</p>
+    {% endif %}
+</section>
+
+<section class="panel module-page-tools no-print reports2-surface reports-mobile-hide">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-chart-pie"></i>{{ txt('Report Tools', 'রিপোর্ট টুলস') }}</h4>
+        <p>{{ txt('Report export and print tools stay here so the top filter bar stays clean.', 'top filter bar clean রাখতে export ও print tools নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <a class="link-btn" href="{{ url_for('reports_export_csv', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, module=module_filter, sale_type=sale_type_filter) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Report', 'রিপোর্ট প্রিন্ট') }}</button>
+    </div>
+</section>
+</div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if reports_mobile_screen != 'menu' %}
+
+<script>
+(() => {
+    const sectionData = {{ section_metrics|tojson }};
+    const brandData = {{ brand_profit[:8]|tojson }};
+    const categoryData = {{ category_profit[:8]|tojson }};
+    const trendLabels = {{ trend_labels|tojson }};
+    const trendRevenue = {{ trend_revenue|tojson }};
+    const trendNet = {{ trend_net_profit|tojson }};
+    const trendExpense = {{ trend_expense|tojson }};
+    const weekdayData = {{ weekday_heatmap|tojson }};
+
+    const reportsBase = "{{ url_for('reports') }}";
+    const baseFilter = {
+        preset: "{{ preset }}",
+        date_from: "{{ date_from }}",
+        date_to: "{{ date_to }}",
+        branch_id: "{{ branch_filter }}",
+        module: "{{ module_filter }}",
+        sale_type: "{{ sale_type_filter }}",
+    };
+
+    const money = (value) => {
+        const num = Number(value || 0);
+        return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    };
+
+    const escapeHtml = (value) => String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const drillUrl = (kind, key) => {
+        const params = new URLSearchParams(baseFilter);
+        if (kind) params.set("drill_kind", kind);
+        if (key) params.set("drill_key", key);
+        return `${reportsBase}?${params.toString()}`;
+    };
+
+    const renderSectionChart = () => {
+        const wrap = document.getElementById("sectionChart");
+        if (!wrap) return;
+        if (!Array.isArray(sectionData) || sectionData.length === 0) {
+            wrap.innerHTML = '<p class="muted-text">No section data.</p>';
+            return;
+        }
+
+        const maxRevenue = Math.max(1, ...sectionData.map((x) => Math.abs(Number(x.revenue || 0))));
+        const maxProfit = Math.max(1, ...sectionData.map((x) => Math.abs(Number(x.profit || 0))));
+        const maxNet = Math.max(1, ...sectionData.map((x) => Math.abs(Number(x.net_impact || 0))));
+
+        wrap.innerHTML = sectionData.map((item) => {
+            const rev = Number(item.revenue || 0);
+            const gp = Number(item.profit || 0);
+            const net = Number(item.net_impact || 0);
+            const revW = Math.max(3, Math.round((Math.abs(rev) / maxRevenue) * 100));
+            const gpW = Math.max(3, Math.round((Math.abs(gp) / maxProfit) * 100));
+            const netW = Math.max(3, Math.round((Math.abs(net) / maxNet) * 100));
+            return `
+                <article class="reports2-stack-row">
+                    <a class="reports2-stack-label" href="${drillUrl(item.drill_kind, item.drill_key)}">${escapeHtml(item.label)}</a>
+                    <div class="reports2-stack-bars">
+                        <div class="bar bar-revenue"><span style="width:${revW}%"></span></div>
+                        <div class="bar ${gp >= 0 ? 'bar-profit' : 'bar-loss'}"><span style="width:${gpW}%"></span></div>
+                        <div class="bar ${net >= 0 ? 'bar-net' : 'bar-loss'}"><span style="width:${netW}%"></span></div>
+                    </div>
+                    <div class="reports2-stack-values">
+                        <small>R: ${money(rev)}</small>
+                        <small>GP: ${money(gp)}</small>
+                        <small>Net: ${money(net)}</small>
+                    </div>
+                </article>
+            `;
+        }).join("");
+    };
+
+    const donutColors = ["#3be0d8", "#5ea1ff", "#ffb44d", "#8d78ff", "#ff6f91", "#64db8f", "#7ea3c4", "#4ec1d3"];
+    const renderDonut = (targetId, dataRows) => {
+        const mount = document.getElementById(targetId);
+        if (!mount) return;
+        if (!Array.isArray(dataRows) || dataRows.length === 0) {
+            mount.innerHTML = '<p class="muted-text">No data</p>';
+            return;
+        }
+
+        const items = dataRows.slice(0, 6).map((row) => ({
+            label: row.label,
+            value: Math.max(0, Number(row.profit || 0)),
+        }));
+
+        const total = items.reduce((sum, row) => sum + row.value, 0);
+        if (total <= 0) {
+            mount.innerHTML = '<p class="muted-text">No positive contribution</p>';
+            return;
+        }
+
+        let start = 0;
+        const stops = [];
+        const legend = [];
+        items.forEach((item, idx) => {
+            const share = (item.value / total) * 100;
+            const end = start + share;
+            const color = donutColors[idx % donutColors.length];
+            stops.push(`${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+            legend.push(`<li><i style="background:${color}"></i><span>${escapeHtml(item.label)}</span><strong>${share.toFixed(1)}%</strong></li>`);
+            start = end;
+        });
+
+        mount.innerHTML = `
+            <div class="reports2-donut-ring" style="background:conic-gradient(${stops.join(',')});">
+                <span>${money(total)}</span>
+                <small>Profit</small>
+            </div>
+            <ul class="reports2-donut-legend">${legend.join('')}</ul>
+        `;
+    };
+
+    const renderTrendLine = () => {
+        const canvas = document.getElementById("trendLineChart");
+        if (!canvas || !canvas.getContext) return;
+        const ctx = canvas.getContext("2d");
+        const width = canvas.clientWidth || 620;
+        const height = canvas.clientHeight || 220;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const series = [
+            { color: "#3be0d8", values: trendRevenue },
+            { color: "#7db4ff", values: trendNet },
+            { color: "#ff9460", values: trendExpense },
+        ];
+        if (!Array.isArray(trendLabels) || trendLabels.length === 0) {
+            ctx.clearRect(0, 0, width, height);
+            return;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+        series.forEach((row) => {
+            row.values.forEach((v) => {
+                const n = Number(v || 0);
+                if (n < min) min = n;
+                if (n > max) max = n;
+            });
+        });
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+            min = 0;
+            max = 1;
+        }
+        if (min === max) {
+            min -= 1;
+            max += 1;
+        }
+
+        const pad = { left: 36, right: 10, top: 14, bottom: 24 };
+        const plotW = Math.max(10, width - pad.left - pad.right);
+        const plotH = Math.max(10, height - pad.top - pad.bottom);
+
+        const x = (i) => pad.left + (i * plotW) / Math.max(1, trendLabels.length - 1);
+        const y = (v) => pad.top + ((max - v) * plotH) / (max - min);
+
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.strokeStyle = "rgba(190, 212, 242, 0.18)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i += 1) {
+            const py = pad.top + (plotH * i) / 4;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, py);
+            ctx.lineTo(width - pad.right, py);
+            ctx.stroke();
+        }
+
+        series.forEach((row) => {
+            ctx.strokeStyle = row.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            row.values.forEach((raw, idx) => {
+                const value = Number(raw || 0);
+                const px = x(idx);
+                const py = y(value);
+                if (idx === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        });
+
+        ctx.fillStyle = "rgba(219, 233, 255, 0.78)";
+        ctx.font = "11px Manrope, sans-serif";
+        ctx.fillText(trendLabels[0], pad.left, height - 8);
+        ctx.fillText(trendLabels[trendLabels.length - 1], Math.max(pad.left, width - 86), height - 8);
+    };
+
+    const renderHeatmap = () => {
+        const wrap = document.getElementById("weekdayHeatmap");
+        if (!wrap) return;
+        if (!Array.isArray(weekdayData) || weekdayData.length === 0) {
+            wrap.innerHTML = '<p class="muted-text">No weekday data.</p>';
+            return;
+        }
+        const maxAbs = Math.max(1, ...weekdayData.map((item) => Math.abs(Number(item.avg_cashflow || 0))));
+        wrap.innerHTML = weekdayData.map((item) => {
+            const value = Number(item.avg_cashflow || 0);
+            const intensity = Math.max(0.22, Math.min(0.95, Math.abs(value) / maxAbs));
+            const color = value >= 0
+                ? `rgba(59, 224, 216, ${intensity.toFixed(2)})`
+                : `rgba(255, 111, 145, ${intensity.toFixed(2)})`;
+            return `
+                <article class="reports2-heat-cell" style="background:${color};">
+                    <strong>${escapeHtml(item.weekday)}</strong>
+                    <span>${money(value)}</span>
+                    <small>${escapeHtml(String(item.days || 0))} day(s)</small>
+                </article>
+            `;
+        }).join("");
+    };
+
+    renderSectionChart();
+    renderDonut("brandDonut", brandData);
+    renderDonut("categoryDonut", categoryData);
+    renderTrendLine();
+    renderHeatmap();
+    window.addEventListener("resize", renderTrendLine, { passive: true });
+})();
+</script>
+{% endif %}
+{% endblock %}

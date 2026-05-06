@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Returns', 'রিটার্ন') }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('Return Desk', 'রিটার্ন ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Return + Cancel + Restock', 'রিটার্ন + ক্যানসেল + রিস্টক') }}</h3>
+            <p class="muted-text">{{ txt('Handle quick return, cancel sold movement and optionally bring the product back to stock.', 'দ্রুত return করুন, sold movement cancel করুন, আর চাইলে product-কে আবার stock-এ আনুন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="#return-process-form"><i class="fa-solid fa-rotate-left"></i>{{ txt('Process Return', 'রিটার্ন প্রসেস') }}</a>
+            <a class="btn-secondary" href="#return-history-table"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('History', 'হিস্ট্রি') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#return-process-form" class="module-focus-card">
+        <i class="fa-solid fa-barcode"></i>
+        <strong>{{ tracking_code_label }}</strong>
+        <span>{{ txt('Scan and return fast', 'স্ক্যান করে দ্রুত রিটার্ন') }}</span>
+    </a>
+    <a href="#return-restock-block" class="module-focus-card">
+        <i class="fa-solid fa-warehouse"></i>
+        <strong>{{ txt('Restock', 'রিস্টক') }}</strong>
+        <span>{{ txt('Choose stock-in behavior', 'স্টকে ফেরত নাকি না') }}</span>
+    </a>
+    <a href="#return-history-table" class="module-focus-card">
+        <i class="fa-solid fa-table-list"></i>
+        <strong>{{ txt('Return History', 'রিটার্ন হিস্ট্রি') }}</strong>
+        <span>{{ txt('Check recent returns', 'সাম্প্রতিক রিটার্ন দেখুন') }}</span>
+    </a>
+    <a href="{{ url_for('sales') }}" class="module-focus-card">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <strong>{{ txt('Open Sales', 'সেলস খুলুন') }}</strong>
+        <span>{{ txt('Go back to sale flow', 'সেল ফ্লো-তে ফিরুন') }}</span>
+    </a>
+</section>
+
+<section class="panel" id="return-process-form">
+    <h3 class="section-title"><i class="fa-solid fa-arrow-rotate-left"></i>{{ tracking_code_label }} {{ txt(' দিয়ে Return + Wholesale Cancel + Restock', ' দিয়ে Return + Wholesale Cancel + Restock') }}</h3>
+    <form method="post" class="form-grid">
+        <label>
+            {{ tracking_code_label }} *
+            <div class="inline-field">
+                <input id="returnImeiInput" type="text" name="imei" maxlength="{{ tracking_code_max_length }}" required placeholder="{{ tracking_code_placeholder }}" data-scan-mode="{{ tracking_code_mode }}" data-scan-label="{{ tracking_code_label }}">
+                <button type="button" class="btn-secondary" data-scan-target="#returnImeiInput"><i class="fa-solid fa-barcode"></i>Scan</button>
+            </div>
+        </label>
+        <label>
+            Return Date
+            <input type="date" name="return_date" value="{{ today }}">
+        </label>
+        <label class="span-2">
+            Reason
+            <input type="text" name="reason" required placeholder="Defect / Customer issue / Replacement">
+        </label>
+        <label id="return-restock-block">
+            Restock
+            <select name="restock">
+                <option value="1">YES (Warehouse/Stock এ ফেরত)</option>
+                <option value="0">NO</option>
+            </select>
+        </label>
+        <label class="span-2">
+            <span>{{ txt('Force Stock-In (if no active sale found)', 'Active sale না থাকলেও Stock-In') }}</span>
+            <div class="inline-field">
+                <input type="checkbox" name="force_stock_in" value="1">
+                <small class="muted-text">{{ txt('Use only when this code is physically returned but system could not find an active sale record.', 'শুধু তখন ব্যবহার করুন, যখন প্রোডাক্ট বাস্তবে ফেরত এসেছে কিন্তু সিস্টেম active sale খুঁজে পাচ্ছে না।') }}</small>
+            </div>
+        </label>
+        <div class="form-actions">
+            <button type="submit"><i class="fa-solid fa-check"></i>Process Return</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel" id="return-history-table">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>Return History</h3>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Return Date</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>Product</th>
+                    <th>{{ txt('Party', 'পার্টি') }}</th>
+                    <th>Sold Date</th>
+                    <th>Reason</th>
+                    <th>Restock</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in returns %}
+                <tr>
+                    <td>{{ row.return_date }}</td>
+                    <td>{{ row.imei }}</td>
+                    <td>{{ row.brand }} {{ row.model }}</td>
+                    <td>{{ row.shop_name or "-" }}</td>
+                    <td>{{ row.sold_at }}</td>
+                    <td>{{ row.reason or "-" }}</td>
+                    <td>{% if row.restock == 1 %}YES{% else %}NO{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">কোনো return history নেই</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Return Tools', 'রিটার্ন টুলস') }}</h4>
+        <p>{{ txt('Return workflow stays on top; print stays below with support actions.', 'Return workflow উপরে থাকবে, print নিচে support action-এর সাথে থাকবে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Return History', 'রিটার্ন হিস্ট্রি প্রিন্ট') }}</button>
+        <a class="link-btn" href="{{ url_for('sales') }}"><i class="fa-solid fa-cart-shopping"></i>{{ txt('Open Sales', 'সেলস খুলুন') }}</a>
+    </div>
+</section>
+{% endblock %}

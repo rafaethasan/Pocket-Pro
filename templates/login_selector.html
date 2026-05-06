@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="{{ ui_lang|default('bn') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f8a6f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Soft X">
+    <title>{{ txt('Login & Registration', 'লগইন ও রেজিস্ট্রেশন') }} | Soft X</title>
+    <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    {% if offline_mode %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/offline-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome-fallback.css') }}">
+    {% else %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260329auth4') }}">
+    <style>
+    .gateway-shell {
+        min-height: 100vh;
+        padding: 1.1rem 0.75rem;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at top left, #e9fff8 0, #eff5ff 52%, #f7f9ff 100%);
+    }
+    .gateway-card {
+        width: min(980px, 100%);
+        border-radius: 22px;
+        border: 1px solid #d4e4e0;
+        background: #ffffff;
+        box-shadow: 0 26px 48px rgba(14, 40, 72, 0.16);
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+    }
+    .gateway-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .gateway-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #164b40;
+    }
+    .gateway-brand i {
+        width: 34px;
+        height: 34px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        color: #ffffff;
+        background: linear-gradient(135deg, #11856f, #0f6f5d);
+    }
+    .gateway-lang {
+        display: inline-flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .gateway-headline h2 {
+        margin: 0;
+        font-size: clamp(1.18rem, 2.4vw, 1.7rem);
+        color: #173445;
+    }
+    .gateway-headline p {
+        margin: 0.16rem 0 0;
+        color: #567081;
+        font-size: 0.92rem;
+    }
+    .gateway-view-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border: 1px solid #d7e2ef;
+        border-radius: 14px;
+        padding: 0.22rem;
+        gap: 0.22rem;
+        background: #f5f8ff;
+    }
+    .gateway-view-switch a {
+        text-decoration: none;
+        min-height: 42px;
+        border-radius: 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.42rem;
+        font-weight: 800;
+        font-size: 0.9rem;
+        color: #45617b;
+    }
+    .gateway-view-switch a.active {
+        color: #ffffff;
+        background: linear-gradient(135deg, #12826d, #0f6f5d);
+    }
+    .gateway-module-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.6rem;
+    }
+    .gateway-module-card {
+        text-decoration: none;
+        color: #294a66;
+        border: 1px solid #ceddef;
+        border-radius: 15px;
+        background: #f8fbff;
+        min-height: 112px;
+        padding: 0.66rem 0.5rem;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        gap: 0.34rem;
+    }
+    .gateway-module-card i {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        color: #2b5277;
+        border: 1px solid #cbdbee;
+        background: #ffffff;
+        font-size: 1rem;
+    }
+    .gateway-module-card strong {
+        font-size: 0.76rem;
+        line-height: 1.15;
+    }
+    .gateway-module-card span {
+        font-size: 0.66rem;
+        color: #617a92;
+        line-height: 1.1;
+    }
+    .gateway-module-card.active {
+        border-color: #91c5b4;
+        background: linear-gradient(135deg, #e8f9f3, #e8f2ff);
+        color: #173f5a;
+    }
+    .gateway-module-card.active i {
+        border-color: #8fc2b2;
+        color: #0f6f5d;
+    }
+    .gateway-module-card.is-coming-soon {
+        border-style: dashed;
+        background: linear-gradient(135deg, #f7fafc, #eef3f9);
+        color: #7b8ea2;
+        cursor: not-allowed;
+    }
+    .gateway-module-card.is-coming-soon i {
+        color: #8da0b3;
+        background: #f7fbff;
+        border-style: dashed;
+    }
+    .gateway-module-card .soon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.16rem 0.46rem;
+        background: #ffffff;
+        border: 1px solid #d6e1ed;
+        color: #60778e;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+    .gateway-form-wrap {
+        border: 1px solid #d7e3ef;
+        border-radius: 16px;
+        background: #f8fbff;
+        padding: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+    }
+    .gateway-selected-info {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.44rem;
+        color: #30536e;
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+    .gateway-selected-info .chip {
+        border: 1px solid #c9daea;
+        background: #ffffff;
+        border-radius: 999px;
+        padding: 0.16rem 0.52rem;
+        font-size: 0.72rem;
+        color: #4d6883;
+    }
+    .gateway-login-role {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+    }
+    .gateway-role-option {
+        border: 1px solid #ceddef;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 0.55rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.42rem;
+        color: #335472;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .gateway-role-option input {
+        accent-color: #117c67;
+    }
+    .gateway-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.6rem;
+    }
+    .gateway-form-grid .full {
+        grid-column: 1 / -1;
+    }
+    .gateway-form-wrap .form-stack {
+        display: grid;
+        gap: 0.3rem;
+        color: #37556f;
+        font-weight: 700;
+        font-size: 0.84rem;
+    }
+    .gateway-form-wrap .form-stack input,
+    .gateway-form-wrap .form-stack select {
+        width: 100%;
+        min-height: 42px;
+        border-radius: 11px;
+        border: 1px solid #cddded;
+        background: #ffffff;
+        color: #193f5d;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.62rem;
+    }
+    .gateway-submit {
+        min-height: 46px;
+        border-radius: 12px;
+        border: 0;
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #12826d, #0f6f5d);
+        cursor: pointer;
+    }
+    .gateway-links {
+        border-top: 1px dashed #cfdeea;
+        padding-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.62rem 0.9rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .gateway-links a {
+        color: #2f5a83;
+        font-size: 0.86rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .gateway-links a:hover {
+        text-decoration: underline;
+    }
+    @media (max-width: 1100px) {
+        .gateway-module-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 860px) {
+        .gateway-card {
+            border-radius: 16px;
+            padding: 0.82rem;
+            gap: 0.7rem;
+        }
+        .gateway-module-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.48rem;
+        }
+        .gateway-module-card {
+            min-height: 92px;
+            border-radius: 12px;
+            padding: 0.5rem 0.3rem;
+        }
+        .gateway-module-card i {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+        }
+        .gateway-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 620px) {
+        .gateway-shell {
+            padding: 0.7rem 0.46rem;
+        }
+        .gateway-module-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .gateway-links {
+            justify-content: flex-start;
+        }
+        .gateway-view-switch a {
+            font-size: 0.84rem;
+            min-height: 40px;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="gateway-shell">
+        <section class="gateway-card">
+            <div class="gateway-top">
+                <div class="gateway-brand">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Soft X</span>
+                </div>
+                <div class="gateway-lang">
+                    <a class="top-action-link {% if ui_lang == 'bn' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.full_path) }}"><i class="fa-solid fa-language"></i>বাংলা</a>
+                    <a class="top-action-link {% if ui_lang == 'en' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.full_path) }}"><i class="fa-solid fa-language"></i>English</a>
+                </div>
+            </div>
+
+            <div class="gateway-headline">
+                <h2>{{ txt('Create Account / Login', 'Create Account / Login') }}</h2>
+                <p>{{ txt('Select module card, then use the form below.', 'মডিউল কার্ড সিলেক্ট করুন, তারপর নিচের ফর্ম ব্যবহার করুন।') }}</p>
+            </div>
+
+            <div class="gateway-view-switch">
+                {% set login_mode = 'admin' if selected_is_pocket else mode %}
+                <a class="{% if view_mode == 'login' %}active{% endif %}" href="{{ url_for('login_selector', view='login', mode=login_mode, module=selected_module|lower, next=next_path, login=login_prefill) }}">
+                    <i class="fa-solid fa-right-to-bracket"></i>{{ txt('Login', 'লগইন') }}
+                </a>
+                <a class="{% if view_mode == 'register' %}active{% endif %}" href="{{ url_for('login_selector', view='register', mode=login_mode, module=selected_module|lower, next=next_path) }}">
+                    <i class="fa-solid fa-user-plus"></i>{{ txt('Create Account', 'Create Account') }}
+                </a>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <section class="alerts">
+                        {% for category, message in messages %}
+                            <div class="alert {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </section>
+                {% endif %}
+            {% endwith %}
+
+            <div class="gateway-module-grid">
+                {% for item in business_modules %}
+                {% if item.public_enabled %}
+                <a
+                    class="gateway-module-card {% if selected_module == item.key %}active{% endif %}"
+                    href="{{ url_for('login_selector', view=view_mode, mode=('admin' if item.key == 'POCKET_MONEY' else login_mode), module=item.key|lower, next=next_path, login=login_prefill) }}"
+                >
+                    <i class="{{ item.icon }}"></i>
+                    <strong>{{ txt(item.label_en, item.label_bn) }}</strong>
+                    <span>{{ item.tracking_mode }}</span>
+                </a>
+                {% else %}
+                <div class="gateway-module-card is-coming-soon" aria-disabled="true">
+                    <i class="{{ item.icon }}"></i>
+                    <strong>{{ txt(item.label_en, item.label_bn) }}</strong>
+                    <span class="soon-badge">{{ txt('Coming Soon', 'Coming Soon') }}</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="gateway-selected-info">
+                <span><i class="fa-solid fa-circle-info"></i> {{ txt('Live launch is focused on Mobile Wholesale. Other modules stay marked as Coming Soon for now.', 'Live launch এখন Mobile Wholesale-এ focused। বাকি module আপাতত Coming Soon হিসেবে রাখা হয়েছে।') }}</span>
+            </div>
+
+            <section class="gateway-form-wrap">
+                <div class="gateway-selected-info">
+                    <span><i class="fa-solid fa-layer-group"></i> {{ txt('Selected Module', 'নির্বাচিত মডিউল') }}:</span>
+                    <span class="chip">{{ txt(selected_module_info.label_en, selected_module_info.label_bn) }}</span>
+                    <span class="chip">{{ selected_module_info.tracking_mode }}</span>
+                </div>
+
+                {% if view_mode == 'login' %}
+                <form method="post" action="{{ url_for('client_login') }}" class="gateway-form-grid">
+                    <input type="hidden" name="gateway" value="1">
+                    <input type="hidden" name="module_key" value="{{ selected_module }}">
+                    <input type="hidden" name="module_profile" value="{{ 'POCKET' if selected_is_pocket else 'BUSINESS' }}">
+                    <input type="hidden" name="mode" value="{{ 'admin' if selected_is_pocket else login_mode }}">
+                    {% if next_path %}
+                    <input type="hidden" name="next" value="{{ next_path }}">
+                    {% endif %}
+
+                    {% if not selected_is_pocket %}
+                    <div class="gateway-login-role full">
+                        <label class="gateway-role-option">
+                            <input type="radio" name="mode" value="admin" {% if login_mode == 'admin' %}checked{% endif %}>
+                            <span><i class="fa-solid fa-user-tie"></i> {{ txt('Admin', 'অ্যাডমিন') }}</span>
+                        </label>
+                        <label class="gateway-role-option">
+                            <input type="radio" name="mode" value="user" {% if login_mode != 'admin' %}checked{% endif %}>
+                            <span><i class="fa-solid fa-user"></i> {{ txt('User', 'ইউজার') }}</span>
+                        </label>
+                    </div>
+                    {% else %}
+                    <div class="gateway-selected-info full">
+                        <span><i class="fa-solid fa-user-lock"></i>{{ txt('Pocket login uses single account flow (no role selection).', 'Pocket login এ single account flow থাকবে (role selection নেই)।') }}</span>
+                    </div>
+                    {% endif %}
+
+                    <label class="form-stack full">
+                        {{ txt('Login ID / Email', 'লগইন আইডি / ইমেইল') }}
+                        <input type="text" name="login_identifier" required autocomplete="username" placeholder="{{ txt('login id or email', 'login id বা email') }}" value="{{ login_prefill }}">
+                    </label>
+                    <label class="form-stack full">
+                        {{ txt('Password', 'পাসওয়ার্ড') }}
+                        <input type="password" name="password" required autocomplete="current-password" placeholder="******">
+                    </label>
+
+                    <button type="submit" class="gateway-submit full">
+                        <i class="fa-solid fa-lock-open"></i> {{ txt('Login Now', 'এখনই লগইন') }}
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('client_register') }}" class="gateway-form-grid">
+                    <input type="hidden" name="gateway" value="1">
+                    <input type="hidden" name="module_key" value="{{ selected_module }}">
+                    <input type="hidden" name="module_profile" value="{{ 'POCKET' if selected_is_pocket else 'BUSINESS' }}">
+                    {% if not selected_is_pocket %}
+                    <input type="hidden" name="primary_business" value="{{ selected_module }}">
+                    <input type="hidden" name="enabled_modules" value="{{ selected_module }}">
+                    {% endif %}
+                    {% if next_path %}
+                    <input type="hidden" name="next" value="{{ next_path }}">
+                    {% endif %}
+
+                    <label class="form-stack">
+                        {% if selected_is_pocket %}
+                        {{ txt('Full Name', 'Full Name') }}
+                        <input type="text" name="full_name" required placeholder="{{ txt('Your full name', 'আপনার পূর্ণ নাম') }}">
+                        {% else %}
+                        {{ txt('Shop Name', 'শপের নাম') }}
+                        <input type="text" name="shop_name" required placeholder="{{ txt('Name', 'নাম') }}">
+                        {% endif %}
+                    </label>
+                    <label class="form-stack">
+                        {% if selected_is_pocket %}
+                        {{ txt('User Name', 'User Name') }}
+                        <input type="text" name="user_name" required placeholder="{{ txt('Display user name', 'ডিসপ্লে ইউজার নাম') }}">
+                        {% else %}
+                        {{ txt('Owner Name', 'মালিকের নাম') }}
+                        <input type="text" name="owner_name" placeholder="{{ txt('Owner full name', 'মালিকের পূর্ণ নাম') }}">
+                        {% endif %}
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('Phone', 'ফোন') }}
+                        <input type="text" name="phone" placeholder="+8801XXXXXXXXX">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('UI Language', 'ইন্টারফেস ভাষা') }}
+                        <select name="ui_language" required>
+                            <option value="bn">বাংলা</option>
+                            <option value="en">English</option>
+                        </select>
+                    </label>
+                    <label class="form-stack">
+                        {% if selected_is_pocket %}
+                        {{ txt('Login ID / Email', 'লগইন আইডি / ইমেইল') }}
+                        <input type="text" name="login_id" required autocomplete="username" placeholder="{{ txt('e.g. yourid or mail@mail.com', 'যেমন yourid বা mail@mail.com') }}">
+                        {% else %}
+                        {{ txt('Login ID (username or email)', 'লগইন আইডি (username বা email)') }}
+                        <input type="text" name="username" required autocomplete="username" placeholder="{{ txt('e.g. techorigin or name@mail.com', 'যেমন techorigin বা name@mail.com') }}">
+                        {% endif %}
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('Password', 'পাসওয়ার্ড') }}
+                        <input type="password" name="password" required autocomplete="new-password" placeholder="******">
+                    </label>
+                    <label class="form-stack full">
+                        {{ txt('Confirm Password', 'পাসওয়ার্ড নিশ্চিত করুন') }}
+                        <input type="password" name="confirm_password" required autocomplete="new-password" placeholder="******">
+                    </label>
+
+                    <button type="submit" class="gateway-submit full">
+                        <i class="fa-solid fa-user-check"></i> {{ txt('Create Account', 'একাউন্ট তৈরি করুন') }}
+                    </button>
+                </form>
+                {% endif %}
+            </section>
+
+            <div class="gateway-links">
+                <a href="{{ url_for('forgot_password', profile=('pocket' if selected_is_pocket else 'business'), module=selected_module|lower, mode=login_mode, next=next_path) }}">
+                    <i class="fa-solid fa-key"></i> {{ txt('Forgot Password?', 'পাসওয়ার্ড ভুলে গেছেন?') }}
+                </a>
+                {% if view_mode == 'login' %}
+                <a href="{{ url_for('login_selector', view='register', mode=login_mode, module=selected_module|lower, next=next_path) }}">
+                    <i class="fa-solid fa-user-plus"></i> {{ txt('Need account? Create one', 'একাউন্ট নেই? নতুনটি তৈরি করুন') }}
+                </a>
+                {% else %}
+                <a href="{{ url_for('login_selector', view='login', mode=login_mode, module=selected_module|lower, next=next_path) }}">
+                    <i class="fa-solid fa-right-to-bracket"></i> {{ txt('Already have account? Login', 'একাউন্ট আছে? লগইন করুন') }}
+                </a>
+                {% endif %}
+                <a href="{{ url_for('superadmin_login') }}">
+                    <i class="fa-solid fa-user-shield"></i> {{ txt('Software Admin', 'সফটওয়্যার অ্যাডমিন') }}
+                </a>
+            </div>
+        </section>
+    </div>
+    <script src="{{ url_for('static', filename='pwa-install.js') }}"></script>
+</body>
+</html>

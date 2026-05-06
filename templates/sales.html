@@ -1,0 +1,981 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Sales', 'সেলস') }} | Soft X{% endblock %}
+{% block content %}
+{% set sales_mobile_view = request.args.get('sview', 'entry') %}
+<div class="sales-native-shell sales-mobile-view-{{ sales_mobile_view }}">
+<section class="panel hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('Sales Desk', 'সেলস ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-cash-register"></i>{{ txt('Wholesale + Retail Sale Flow', 'হোলসেল + রিটেইল সেল ফ্লো') }}</h3>
+            <p class="muted-text">{{ txt('Search fast, choose IMEI quickly and keep due collection close to the main sale workflow.', 'দ্রুত সার্চ করুন, IMEI দ্রুত বাছুন, আর due collection-কে main sale workflow-এর কাছেই রাখুন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="#sale-entry-form"><i class="fa-solid fa-bolt"></i>{{ txt('Start Sale', 'সেল শুরু') }}</a>
+            <a class="btn-secondary" href="{{ url_for('due_list') }}"><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Due Queue', 'বাকি লিস্ট') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="{{ url_for('sales', sview='entry') ~ '#sale-entry-form' }}" class="module-focus-card {% if sales_mobile_view == 'entry' %}is-active{% endif %}">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <strong>{{ txt('Sale Entry', 'সেল এন্ট্রি') }}</strong>
+        <span>{{ txt('Find model or IMEI fast', 'দ্রুত মডেল বা IMEI খুঁজুন') }}</span>
+    </a>
+    <a href="{{ url_for('sales', sview='return') ~ '#sale-quick-return' }}" class="module-focus-card {% if sales_mobile_view == 'return' %}is-active{% endif %}">
+        <i class="fa-solid fa-rotate-left"></i>
+        <strong>{{ txt('Quick Return', 'কুইক রিটার্ন') }}</strong>
+        <span>{{ txt('Fast return by code', 'কোড দিয়ে দ্রুত রিটার্ন') }}</span>
+    </a>
+    <a href="{{ url_for('due_list') }}" class="module-focus-card {% if sales_mobile_view == 'due' %}is-active{% endif %}">
+        <i class="fa-solid fa-wallet"></i>
+        <strong>{{ txt('Due Queue', 'বাকি লিস্ট') }}</strong>
+        <span>{{ txt('Collect pending dues', 'বকেয়া দ্রুত আদায়') }}</span>
+    </a>
+    <a href="{{ url_for('sales', sview='history') ~ '#sale-history' }}" class="module-focus-card {% if sales_mobile_view == 'history' %}is-active{% endif %}">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <strong>{{ txt('Sale History', 'সেল হিস্ট্রি') }}</strong>
+        <span>{{ txt('Track recent sold units', 'সাম্প্রতিক সেল দেখুন') }}</span>
+    </a>
+</section>
+
+<section class="panel sales-mobile-pane sales-pane-entry" id="sale-entry-form">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-cash-register"></i>{{ txt('Sale Entry (Wholesale / Retail)', 'সেল এন্ট্রি (Wholesale / Retail)') }}</h3>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="form-grid">
+        <input type="hidden" name="sview" value="entry">
+        <label class="span-2">
+            {{ tracking_code_label }} {{ txt('Search (scan/type)', 'সার্চ (স্ক্যান/টাইপ)') }}
+            <div class="inline-field">
+                <input type="text" id="saleImeiSearch" placeholder="{{ txt('Type model name or last 3-4 digits of IMEI', 'মডেল নাম বা IMEI-এর শেষ ৩-৪ ডিজিট লিখুন') }}" data-scan-mode="{{ tracking_code_mode }}" data-scan-label="{{ tracking_code_label }}" autocomplete="off">
+                <button type="button" class="btn-secondary" data-scan-target="#saleImeiSearch"><i class="fa-solid fa-barcode"></i>Scan</button>
+                <button type="button" class="btn-secondary" id="saleSearchBtn"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Search', 'সার্চ') }}</button>
+            </div>
+            <div class="smart-search-suggest" id="saleSearchSuggest" hidden></div>
+        </label>
+
+        <label class="span-2">
+            {{ txt('Product Model Search', 'প্রোডাক্ট মডেল সার্চ') }}
+            <input type="text" id="saleModelSearch" placeholder="{{ txt('Type brand/model/storage/color', 'Brand / Model / Storage / Color লিখুন') }}">
+        </label>
+
+        <label class="span-2">
+            {{ txt('Select Product Model (In Stock)', 'স্টকে থাকা প্রোডাক্ট মডেল সিলেক্ট করুন') }}
+            <select id="saleModelSelect">
+                <option value="">-- {{ txt('Select product model', 'প্রোডাক্ট মডেল সিলেক্ট করুন') }} --</option>
+            </select>
+        </label>
+
+        <label class="span-2">
+            {{ txt('Select', 'নির্বাচন করুন') }} {{ tracking_code_label }} ({{ txt('from selected model', 'সিলেক্টেড মডেল থেকে') }}) *
+            <select name="product_id" id="productSelect" required>
+                <option value="">-- {{ txt('Select', 'নির্বাচন করুন') }} {{ tracking_code_label }} --</option>
+                {% for item in in_stock_products %}
+                <option
+                    value="{{ item.id }}"
+                    data-imei="{{ item.imei }}"
+                    data-brand="{{ item.brand or '' }}"
+                    data-model="{{ item.model or '' }}"
+                    data-storage="{{ item.storage or '' }}"
+                    data-color="{{ item.color or '' }}"
+                    data-category="{{ item.category or '' }}"
+                    data-wholesale="{{ item.wholesale_price }}"
+                    data-retail="{{ item.retail_price }}"
+                >
+                    {{ item.imei }} | {{ item.brand }} {{ item.model }}{% if item.storage %} {{ item.storage }}{% endif %}{% if item.color %} | {{ item.color }}{% endif %} | W: {{ item.wholesale_price|money }} | R: {{ item.retail_price|money }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <div class="sale-mode-switch span-2" id="sale-mode-switch" role="tablist" aria-label="{{ txt('Sale Type', 'সেল টাইপ') }}">
+            <button type="button" class="sale-mode-btn active" data-sale-mode="WHOLESALE" role="tab" aria-selected="true">
+                <i class="fa-solid fa-store"></i>{{ txt('Wholesale', 'হোলসেল') }}
+            </button>
+            <button type="button" class="sale-mode-btn" data-sale-mode="RETAIL" role="tab" aria-selected="false">
+                <i class="fa-solid fa-user"></i>{{ txt('Retail', 'রিটেইল') }}
+            </button>
+        </div>
+        <input type="hidden" name="sale_type" id="saleTypeSelect" value="WHOLESALE">
+
+        <label class="sale-wholesale-field">
+            {{ txt('Wholesale Shop', 'হোলসেল শপ') }} *
+            <select name="customer_id" id="saleCustomerId" required>
+                <option value="">-- {{ txt('Select wholesale shop', 'হোলসেল শপ সিলেক্ট করুন') }} --</option>
+                {% for customer in customers %}
+                <option value="{{ customer.id }}">
+                    {{ customer.shop_name }}{% if customer.phone %} ({{ customer.phone }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="sale-retail-field is-hidden">
+            {{ txt('Retail Customer (Saved)', 'সেভ করা রিটেইল কাস্টমার') }}
+            <select name="retail_customer_id" id="retailCustomerSelect">
+                <option value="">-- {{ txt('Select retail customer (optional)', 'রিটেইল কাস্টমার সিলেক্ট করুন (অপশনাল)') }} --</option>
+                {% for customer in retail_customers %}
+                <option
+                    value="{{ customer.id }}"
+                    data-name="{{ customer.full_name }}"
+                    data-phone="{{ customer.phone or '' }}"
+                    data-address="{{ customer.address or '' }}"
+                >
+                    {{ customer.full_name }}{% if customer.phone %} ({{ customer.phone }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="sale-retail-field is-hidden">
+            {{ txt('Retail Customer Name', 'রিটেইল কাস্টমার নাম') }} *
+            <input type="text" name="retail_customer_name" id="retailCustomerName" placeholder="{{ txt('Walk-in customer', 'লোকাল কাস্টমার') }}">
+        </label>
+
+        <label class="sale-retail-field is-hidden">
+            {{ txt('Retail Mobile', 'রিটেইল মোবাইল') }}
+            <input type="text" name="retail_customer_phone" id="retailCustomerPhone" placeholder="01XXXXXXXXX">
+        </label>
+
+        <label class="sale-retail-field span-2 is-hidden">
+            {{ txt('Retail Address', 'রিটেইল ঠিকানা') }}
+            <input type="text" name="retail_customer_address" id="retailCustomerAddress" placeholder="{{ txt('Optional address', 'অপশনাল ঠিকানা') }}">
+        </label>
+
+        <label>
+            {{ txt('Invoice No', 'ইনভয়েস নং') }}
+            <input type="text" name="invoice_no" placeholder="{{ txt('Leave empty = auto invoice', 'ফাঁকা রাখুন = auto invoice') }}">
+        </label>
+
+        <label>
+            {{ txt('Sold Price (BDT)', 'বিক্রয় মূল্য (৳)') }}
+            <input type="number" name="sold_price" id="soldPriceInput" min="0" step="0.01" placeholder="empty রাখলে default price">
+        </label>
+
+        <label>
+            {{ txt('Paid Now (BDT)', 'এখন পরিশোধ (৳)') }}
+            <input type="number" name="paid_amount" min="0" step="0.01" placeholder="ফাঁকা রাখলে Payment অনুযায়ী auto">
+        </label>
+
+        <label>
+            {{ txt('Payment', 'পেমেন্ট') }}
+            <select name="payment_status">
+                <option value="PAID">PAID</option>
+                <option value="DUE">DUE</option>
+            </select>
+        </label>
+
+        <label>
+            {{ txt('Sold Date', 'সেল তারিখ') }}
+            <input type="date" name="sold_at" value="{{ today }}">
+        </label>
+
+        <label>
+            {{ txt('Receiver Name', 'গ্রহণকারীর নাম') }}
+            <input type="text" name="receiver_name" placeholder="কে ফোন নিল">
+        </label>
+
+        <label>
+            {{ txt('Receiver Phone', 'গ্রহণকারীর ফোন') }}
+            <input type="text" name="receiver_phone" placeholder="01XXXXXXXXX">
+        </label>
+
+        <label class="span-2">
+            {{ txt('Receiver Photo (Fraud Proof)', 'গ্রহণকারীর ছবি (Fraud proof)') }}
+            <input type="file" id="saleReceiverPhotoInput" name="receiver_photo" accept="image/*" capture="environment">
+            <div class="receiver-photo-preview" id="saleReceiverPhotoPreview" hidden>
+                <img id="saleReceiverPhotoImg" alt="Receiver preview">
+                <div class="receiver-photo-preview-actions">
+                    <a id="saleReceiverPhotoSaveCopy" class="link-btn" download="receiver-photo.jpg"><i class="fa-solid fa-download"></i>{{ txt('Save Copy', 'কপি সেভ') }}</a>
+                </div>
+            </div>
+            <small class="muted-text">{{ txt('Photo is private: only shop admin can view, and it will not be printed.', 'ছবি প্রাইভেট: শুধু shop admin দেখবে, প্রিন্টে যাবে না।') }}</small>
+        </label>
+
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="note" placeholder="Optional note">
+        </label>
+
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-circle-check"></i>{{ txt('Confirm Sale', 'সেল কনফার্ম করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel sales-mobile-pane sales-pane-return" id="sale-quick-return">
+    <h3 class="section-title"><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Quick Return by Tracking Code', 'Tracking Code দিয়ে দ্রুত Return') }}</h3>
+    <form method="post" action="{{ url_for('sales_quick_return') }}" class="form-grid">
+        <input type="hidden" name="sview" value="return">
+        <label>
+            {{ tracking_code_label }}
+            <div class="inline-field">
+                <input type="text" name="imei" id="quickReturnCode" required placeholder="{{ tracking_code_placeholder }}" data-scan-mode="{{ tracking_code_mode }}" data-scan-label="{{ tracking_code_label }}">
+                <button type="button" class="btn-secondary" data-scan-target="#quickReturnCode"><i class="fa-solid fa-barcode"></i>Scan</button>
+            </div>
+        </label>
+        <label>
+            {{ txt('Return Date', 'রিটার্ন তারিখ') }}
+            <input type="date" name="return_date" value="{{ today }}">
+        </label>
+        <label class="span-2">
+            {{ txt('Reason', 'কারণ') }}
+            <input type="text" name="reason" required placeholder="Defect / Exchange / Wrong item">
+        </label>
+        <label>
+            {{ txt('Restock', 'স্টকে ফেরত') }}
+            <select name="restock">
+                <option value="1">YES</option>
+                <option value="0">NO</option>
+            </select>
+        </label>
+        <div class="form-actions">
+            <button type="submit" class="btn-danger"><i class="fa-solid fa-rotate-left"></i>{{ txt('Return Now', 'এখনই রিটার্ন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel sales-mobile-pane sales-pane-due" id="sale-due-queue">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Due Collection Queue', 'বাকি সংগ্রহ লিস্ট') }}</h3>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Party', 'পার্টি') }}</th>
+                    <th>{{ txt('Sold', 'সেল') }}</th>
+                    <th>{{ txt('Paid', 'পেইড') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Collect', 'কালেক্ট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in due_sales %}
+                <tr>
+                    <td>{{ d.sold_at }}</td>
+                    <td>{{ d.imei }}</td>
+                    <td>{{ d.shop_name or '-' }}</td>
+                    <td>{{ d.sold_price|money }}</td>
+                    <td>{{ d.paid_amount|money }}</td>
+                    <td><strong>{{ d.due_amount|money }}</strong></td>
+                    <td>
+                        <form method="post" action="{{ url_for('sale_collect_due', sale_id=d.id) }}" class="inline-form">
+                            <input type="hidden" name="sview" value="due">
+                            <input type="hidden" name="collected_at" value="{{ today }}">
+                            <input type="hidden" name="method" value="CASH">
+                            <input type="hidden" name="redirect_to" value="sales">
+                            <input type="number" name="amount" min="0.01" step="0.01" max="{{ d.due_amount }}" placeholder="amount" required>
+                            <button type="submit"><i class="fa-solid fa-hand-holding-dollar"></i>{{ txt('Save', 'সেভ') }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">{{ txt('No due sales found', 'কোনো বাকি সেল নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="sales-mobile-card-list sales-due-mobile-list">
+        {% for d in due_sales %}
+        <article class="sales-mobile-line-card">
+            <header>
+                <div>
+                    <strong>{{ d.shop_name or '-' }}</strong>
+                    <small>{{ d.imei }} | {{ d.sold_at }}</small>
+                </div>
+                <span class="badge due">{{ d.due_amount|money }}</span>
+            </header>
+            <div class="sales-mobile-line-grid">
+                <span><b>{{ txt('Sold', 'সেল') }}</b>{{ d.sold_price|money }}</span>
+                <span><b>{{ txt('Paid', 'পেইড') }}</b>{{ d.paid_amount|money }}</span>
+            </div>
+            <form method="post" action="{{ url_for('sale_collect_due', sale_id=d.id) }}" class="sales-mobile-inline-form">
+                <input type="hidden" name="sview" value="due">
+                <input type="hidden" name="collected_at" value="{{ today }}">
+                <input type="hidden" name="method" value="CASH">
+                <input type="hidden" name="redirect_to" value="sales">
+                <input type="number" name="amount" min="0.01" step="0.01" max="{{ d.due_amount }}" placeholder="amount" required>
+                <button type="submit"><i class="fa-solid fa-hand-holding-dollar"></i>{{ txt('Save', 'সেভ') }}</button>
+            </form>
+        </article>
+        {% else %}
+        <p class="empty-state">{{ txt('No due sales found', 'কোনো বাকি সেল নেই') }}</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel sales-mobile-pane sales-pane-history" id="sale-history">
+    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Sales History + Return Control', 'সেলস হিস্ট্রি + রিটার্ন কন্ট্রোল') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Party', 'পার্টি') }}</th>
+                    <th>{{ txt('Type', 'টাইপ') }}</th>
+                    <th>{{ txt('Sold', 'সেল') }}</th>
+                    <th>{{ txt('Paid', 'পেইড') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th>{{ txt('Receiver', 'গ্রহণকারী') }}</th>
+                    <th>{{ txt('Payment', 'পেমেন্ট') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Return', 'রিটার্ন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td>{{ s.sold_at }}</td>
+                    <td>{{ s.imei }}</td>
+                    <td>{{ s.shop_name or '-' }}</td>
+                    <td>{{ s.sale_type }}</td>
+                    <td>{{ s.sold_price|money }}</td>
+                    <td>{{ s.paid_amount|money }}</td>
+                    <td>{{ s.due_amount|money }}</td>
+                    <td>{% if s.is_active == 1 %}{{ s.profit|money }}{% else %}0.00{% endif %}</td>
+                    <td>
+                        {{ s.receiver_name or '-' }}
+                        {% if s.receiver_phone %}<small>{{ s.receiver_phone }}</small>{% endif %}
+                        {% if can_view_receiver_photo and s.receiver_photo_path %}
+                            <small class="no-print"><a class="link-btn" href="{{ url_for('sale_receiver_photo', sale_id=s.id) }}" target="_blank"><i class="fa-solid fa-image"></i>{{ txt('Photo', 'ছবি') }}</a></small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if s.payment_status == 'PAID' %}paid{% else %}due{% endif %}">{{ s.payment_status }}</span>
+                    </td>
+                    <td>
+                        {% if s.is_active == 1 %}
+                            <span class="badge paid">ACTIVE</span>
+                        {% else %}
+                            <span class="badge due">RETURNED</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.is_active == 1 %}
+                        <form method="post" action="{{ url_for('sale_return', sale_id=s.id) }}" class="inline-form">
+                            <input type="hidden" name="sview" value="history">
+                            <input type="hidden" name="return_date" value="{{ today }}">
+                            <input type="hidden" name="restock" value="1">
+                            <input type="text" name="reason" placeholder="Return reason" required>
+                            <button type="submit" class="btn-danger"><i class="fa-solid fa-rotate-left"></i>Return</button>
+                        </form>
+                        {% else %}
+                            {{ s.return_date or '-' }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="12">{{ txt('No sale history found', 'কোনো sale history নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="sales-mobile-card-list sales-history-mobile-list">
+        {% for s in sales %}
+        <article class="sales-mobile-line-card">
+            <header>
+                <div>
+                    <strong>{{ s.imei }}</strong>
+                    <small>{{ s.shop_name or '-' }} | {{ s.sold_at }}</small>
+                </div>
+                <span class="badge {% if s.is_active == 1 %}paid{% else %}due{% endif %}">
+                    {% if s.is_active == 1 %}ACTIVE{% else %}RETURNED{% endif %}
+                </span>
+            </header>
+            <div class="sales-mobile-line-grid">
+                <span><b>{{ txt('Type', 'টাইপ') }}</b>{{ s.sale_type }}</span>
+                <span><b>{{ txt('Sold', 'সেল') }}</b>{{ s.sold_price|money }}</span>
+                <span><b>{{ txt('Paid', 'পেইড') }}</b>{{ s.paid_amount|money }}</span>
+                <span><b>{{ txt('Due', 'বাকি') }}</b>{{ s.due_amount|money }}</span>
+                <span><b>{{ txt('Profit', 'প্রফিট') }}</b>{% if s.is_active == 1 %}{{ s.profit|money }}{% else %}0.00{% endif %}</span>
+                <span><b>{{ txt('Receiver', 'গ্রহণকারী') }}</b>{{ s.receiver_name or '-' }}</span>
+            </div>
+            <div class="inventory-row-actions stock-report-inline-actions">
+                {% if can_view_receiver_photo and s.receiver_photo_path %}
+                <a class="link-btn" href="{{ url_for('sale_receiver_photo', sale_id=s.id) }}" target="_blank"><i class="fa-solid fa-image"></i>{{ txt('Photo', 'ছবি') }}</a>
+                {% endif %}
+                {% if s.is_active == 1 %}
+                <form method="post" action="{{ url_for('sale_return', sale_id=s.id) }}" class="sales-mobile-inline-form">
+                    <input type="hidden" name="sview" value="history">
+                    <input type="hidden" name="return_date" value="{{ today }}">
+                    <input type="hidden" name="restock" value="1">
+                    <input type="text" name="reason" placeholder="Return reason" required>
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-rotate-left"></i>{{ txt('Return', 'রিটার্ন') }}</button>
+                </form>
+                {% else %}
+                <span class="form-inline-note">{{ s.return_date or '-' }}</span>
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <p class="empty-state">{{ txt('No sale history found', 'কোনো sale history নেই') }}</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print sales-mobile-hide">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-cart-shopping"></i>{{ txt('Sales Tools', 'সেলস টুলস') }}</h4>
+        <p>{{ txt('Sale page keeps sale workflow in the main body and utility actions below.', 'Sale page-এর main body-তে শুধু workflow রাখা হয়েছে, utility action নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Sales Page', 'সেলস পেজ প্রিন্ট') }}</button>
+        <a class="link-btn" href="{{ url_for('returns') }}"><i class="fa-solid fa-rotate-left"></i>{{ txt('Open Returns', 'রিটার্ন খুলুন') }}</a>
+    </div>
+</section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const productSelect = document.getElementById("productSelect");
+const modelSearchInput = document.getElementById("saleModelSearch");
+const modelSelect = document.getElementById("saleModelSelect");
+const soldPriceInput = document.getElementById("soldPriceInput");
+const saleTypeSelect = document.getElementById("saleTypeSelect");
+const searchInput = document.getElementById("saleImeiSearch");
+const saleSearchBtn = document.getElementById("saleSearchBtn");
+const saleSearchSuggest = document.getElementById("saleSearchSuggest");
+const saleModeButtons = document.querySelectorAll("[data-sale-mode]");
+const wholesaleFields = document.querySelectorAll(".sale-wholesale-field");
+const retailFields = document.querySelectorAll(".sale-retail-field");
+const wholesaleCustomerSelect = document.getElementById("saleCustomerId");
+const retailCustomerSelect = document.getElementById("retailCustomerSelect");
+const retailCustomerName = document.getElementById("retailCustomerName");
+const retailCustomerPhone = document.getElementById("retailCustomerPhone");
+const retailCustomerAddress = document.getElementById("retailCustomerAddress");
+const saleReceiverPhotoInput = document.getElementById("saleReceiverPhotoInput");
+const saleReceiverPhotoPreview = document.getElementById("saleReceiverPhotoPreview");
+const saleReceiverPhotoImg = document.getElementById("saleReceiverPhotoImg");
+const saleReceiverPhotoSaveCopy = document.getElementById("saleReceiverPhotoSaveCopy");
+
+function normalizeToken(value) {
+    return String(value || "").trim().toUpperCase();
+}
+
+function makeModelKey(row) {
+    return [
+        normalizeToken(row.brand),
+        normalizeToken(row.model),
+        normalizeToken(row.storage),
+        normalizeToken(row.color),
+    ].join("|");
+}
+
+function modelLabel(row, count) {
+    const namePart = `${row.brand} ${row.model}`.trim();
+    const storagePart = row.storage ? ` | ${row.storage}` : "";
+    const colorPart = row.color ? ` | ${row.color}` : "";
+    const countPart = ` (${count})`;
+    return `${namePart}${storagePart}${colorPart}${countPart}`;
+}
+
+function escapeHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+const initialProducts = productSelect
+    ? Array.from(productSelect.options)
+          .filter((option) => option.value)
+          .map((option) => {
+              const row = {
+                  value: String(option.value),
+                  imei: String(option.dataset.imei || ""),
+                  brand: String(option.dataset.brand || ""),
+                  model: String(option.dataset.model || ""),
+                  storage: String(option.dataset.storage || ""),
+                  color: String(option.dataset.color || ""),
+                  wholesale: String(option.dataset.wholesale || ""),
+                  retail: String(option.dataset.retail || ""),
+                  label: String(option.textContent || "").trim(),
+              };
+              return { ...row, modelKey: makeModelKey(row) };
+          })
+    : [];
+
+const modelMap = new Map();
+initialProducts.forEach((row) => {
+    if (!row.modelKey.replace(/\|/g, "").trim()) return;
+    if (!modelMap.has(row.modelKey)) {
+        modelMap.set(row.modelKey, {
+            key: row.modelKey,
+            brand: row.brand,
+            model: row.model,
+            storage: row.storage,
+            color: row.color,
+            count: 0,
+        });
+    }
+    const existing = modelMap.get(row.modelKey);
+    existing.count += 1;
+});
+
+const modelCatalog = Array.from(modelMap.values()).sort((a, b) => {
+    const left = `${a.brand} ${a.model} ${a.storage} ${a.color}`.toUpperCase();
+    const right = `${b.brand} ${b.model} ${b.storage} ${b.color}`.toUpperCase();
+    return left.localeCompare(right);
+});
+
+function resetSelectWithPlaceholder(selectEl, placeholderText) {
+    if (!selectEl) return;
+    selectEl.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholderText;
+    selectEl.appendChild(first);
+}
+
+function renderModelOptions(filterValue = "", preferredKey = "") {
+    if (!modelSelect) return [];
+    const filterToken = normalizeToken(filterValue);
+    const filtered = modelCatalog.filter((row) => {
+        if (!filterToken) return true;
+        const haystack = `${row.brand} ${row.model} ${row.storage} ${row.color}`.toUpperCase();
+        return haystack.includes(filterToken);
+    });
+
+    resetSelectWithPlaceholder(
+        modelSelect,
+        "-- {{ txt('Select product model', 'প্রোডাক্ট মডেল সিলেক্ট করুন') }} --"
+    );
+
+    filtered.forEach((row) => {
+        const option = document.createElement("option");
+        option.value = row.key;
+        option.textContent = modelLabel(row, row.count);
+        modelSelect.appendChild(option);
+    });
+
+    const nextValue = preferredKey && filtered.some((row) => row.key === preferredKey) ? preferredKey : "";
+    modelSelect.value = nextValue;
+    return filtered;
+}
+
+function renderImeiOptions(modelKey = "", preferredProductId = "") {
+    if (!productSelect) return [];
+    const rows = modelKey
+        ? initialProducts.filter((row) => row.modelKey === modelKey)
+        : initialProducts.slice();
+
+    const placeholder = modelKey
+        ? `-- {{ txt('Select', 'নির্বাচন করুন') }} {{ tracking_code_label }} (${rows.length}) --`
+        : "-- {{ txt('Select', 'নির্বাচন করুন') }} {{ tracking_code_label }} --";
+
+    resetSelectWithPlaceholder(productSelect, placeholder);
+
+    rows.forEach((row) => {
+        const option = document.createElement("option");
+        option.value = row.value;
+        option.textContent = row.label;
+        option.dataset.imei = row.imei;
+        option.dataset.brand = row.brand;
+        option.dataset.model = row.model;
+        option.dataset.storage = row.storage;
+        option.dataset.color = row.color;
+        option.dataset.wholesale = row.wholesale;
+        option.dataset.retail = row.retail;
+        productSelect.appendChild(option);
+    });
+
+    if (preferredProductId && rows.some((row) => row.value === String(preferredProductId))) {
+        productSelect.value = String(preferredProductId);
+        productSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        return rows;
+    }
+
+    if (rows.length === 1) {
+        productSelect.value = rows[0].value;
+        productSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    return rows;
+}
+
+function syncModelFromSelectedProduct() {
+    if (!productSelect) return;
+    const selected = productSelect.options[productSelect.selectedIndex];
+    if (!selected || !selected.value) return;
+    const key = makeModelKey({
+        brand: selected.dataset.brand || "",
+        model: selected.dataset.model || "",
+        storage: selected.dataset.storage || "",
+        color: selected.dataset.color || "",
+    });
+    if (!key) return;
+
+    if (modelSelect && modelSelect.value !== key) {
+        renderModelOptions(modelSearchInput ? modelSearchInput.value : "", key);
+    }
+    if (modelSearchInput) {
+        const modelText = [selected.dataset.brand, selected.dataset.model, selected.dataset.storage, selected.dataset.color]
+            .filter(Boolean)
+            .join(" ");
+        modelSearchInput.value = modelText;
+    }
+}
+
+function toggleSaleFieldGroup(showWholesale) {
+    wholesaleFields.forEach((field) => field.classList.toggle("is-hidden", !showWholesale));
+    retailFields.forEach((field) => field.classList.toggle("is-hidden", showWholesale));
+    if (wholesaleCustomerSelect) {
+        wholesaleCustomerSelect.required = showWholesale;
+    }
+    if (retailCustomerName) {
+        retailCustomerName.required = !showWholesale;
+    }
+}
+
+function syncRetailFieldsFromSelect() {
+    if (!retailCustomerSelect) return;
+    const selected = retailCustomerSelect.options[retailCustomerSelect.selectedIndex];
+    if (!selected || !selected.value) return;
+    if (retailCustomerName && !retailCustomerName.value.trim()) {
+        retailCustomerName.value = selected.dataset.name || "";
+    }
+    if (retailCustomerPhone && !retailCustomerPhone.value.trim()) {
+        retailCustomerPhone.value = selected.dataset.phone || "";
+    }
+    if (retailCustomerAddress && !retailCustomerAddress.value.trim()) {
+        retailCustomerAddress.value = selected.dataset.address || "";
+    }
+}
+
+function setSaleMode(mode) {
+    if (!saleTypeSelect) return;
+    const selectedMode = mode === "RETAIL" ? "RETAIL" : "WHOLESALE";
+    saleTypeSelect.value = selectedMode;
+
+    saleModeButtons.forEach((btn) => {
+        const isActive = btn.dataset.saleMode === selectedMode;
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    toggleSaleFieldGroup(selectedMode === "WHOLESALE");
+    if (soldPriceInput) {
+        soldPriceInput.value = "";
+    }
+    setDefaultPrice();
+}
+
+function setDefaultPrice() {
+    if (!productSelect || !soldPriceInput || !saleTypeSelect) return;
+    const selected = productSelect.options[productSelect.selectedIndex];
+    if (!selected || !selected.value || soldPriceInput.value) return;
+
+    const wholesale = selected.dataset.wholesale;
+    const retail = selected.dataset.retail;
+    const selectedType = saleTypeSelect.value;
+
+    if (selectedType === "RETAIL" && retail) {
+        soldPriceInput.value = Number(retail).toFixed(2);
+        return;
+    }
+    if (wholesale) {
+        soldPriceInput.value = Number(wholesale).toFixed(2);
+    }
+}
+
+function selectProductFromCode(rawValue) {
+    if (!productSelect) return false;
+    const value = String(rawValue || "").trim().toUpperCase();
+    if (!value) return false;
+
+    let best = initialProducts.find((row) => normalizeToken(row.imei) === value);
+    if (!best) {
+        best = initialProducts.find((row) => normalizeToken(row.imei).startsWith(value));
+    }
+    if (!best) {
+        best = initialProducts.find((row) => normalizeToken(row.imei).includes(value));
+    }
+    if (!best) return false;
+
+    renderModelOptions(modelSearchInput ? modelSearchInput.value : "", best.modelKey);
+    if (modelSearchInput) {
+        modelSearchInput.value = [best.brand, best.model, best.storage, best.color].filter(Boolean).join(" ");
+    }
+    renderImeiOptions(best.modelKey, best.value);
+    productSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+}
+
+function setSearchSuggestionVisibility(show) {
+    if (!saleSearchSuggest) return;
+    saleSearchSuggest.hidden = !show;
+}
+
+function isNumericSearch(value) {
+    return /^[0-9]+$/.test(String(value || "").trim());
+}
+
+function buildImeiSuggestions(query) {
+    const token = normalizeToken(query);
+    if (!token) return [];
+    const exactMatches = [];
+    const suffixMatches = [];
+    const prefixMatches = [];
+    const containsMatches = [];
+
+    initialProducts.forEach((row) => {
+        const imei = normalizeToken(row.imei);
+        if (!imei) return;
+        if (imei === token) {
+            exactMatches.push(row);
+            return;
+        }
+        if (imei.endsWith(token)) {
+            suffixMatches.push(row);
+            return;
+        }
+        if (imei.startsWith(token)) {
+            prefixMatches.push(row);
+            return;
+        }
+        if (imei.includes(token)) {
+            containsMatches.push(row);
+        }
+    });
+
+    return [...exactMatches, ...suffixMatches, ...prefixMatches, ...containsMatches]
+        .filter((row, index, rows) => rows.findIndex((item) => item.value === row.value) === index)
+        .slice(0, 8);
+}
+
+function buildModelSuggestions(query) {
+    const token = normalizeToken(query);
+    if (!token) return [];
+    return modelCatalog
+        .filter((row) => {
+            const haystack = `${row.brand} ${row.model} ${row.storage} ${row.color}`.toUpperCase();
+            return haystack.includes(token);
+        })
+        .slice(0, 8);
+}
+
+function renderSaleSuggestions(query) {
+    if (!saleSearchSuggest) return [];
+    const raw = String(query || "").trim();
+    if (!raw) {
+        saleSearchSuggest.innerHTML = "";
+        setSearchSuggestionVisibility(false);
+        return [];
+    }
+
+    const results = isNumericSearch(raw) ? buildImeiSuggestions(raw) : buildModelSuggestions(raw);
+
+    if (!results.length) {
+        saleSearchSuggest.innerHTML = `<div class="smart-search-empty">{{ txt('No match found', 'কোনো মিল পাওয়া যায়নি') }}</div>`;
+        setSearchSuggestionVisibility(true);
+        return [];
+    }
+
+    saleSearchSuggest.innerHTML = results
+        .map((row, index) => {
+            if (isNumericSearch(raw)) {
+                const meta = [row.brand, row.model, row.storage, row.color].filter(Boolean).join(" | ");
+                return `
+                    <button
+                        type="button"
+                        class="smart-search-item"
+                        data-kind="imei"
+                        data-product-id="${escapeHtml(row.value)}"
+                        data-model-key="${escapeHtml(row.modelKey)}"
+                        ${index === 0 ? 'data-primary="1"' : ""}
+                    >
+                        <strong>${escapeHtml(row.imei)}</strong>
+                        <span>${escapeHtml(meta)}</span>
+                    </button>
+                `;
+            }
+
+            return `
+                <button
+                    type="button"
+                    class="smart-search-item"
+                    data-kind="model"
+                    data-model-key="${escapeHtml(row.key)}"
+                    ${index === 0 ? 'data-primary="1"' : ""}
+                >
+                    <strong>${escapeHtml([row.brand, row.model].filter(Boolean).join(" "))}</strong>
+                    <span>${escapeHtml([row.storage, row.color, `${row.count} {{ txt('items', 'আইটেম') }}`].filter(Boolean).join(" | "))}</span>
+                </button>
+            `;
+        })
+        .join("");
+    setSearchSuggestionVisibility(true);
+    return results;
+}
+
+function applySaleSuggestionFromNode(node) {
+    if (!node) return;
+    const kind = node.dataset.kind || "";
+    if (kind === "imei") {
+        const modelKey = node.dataset.modelKey || "";
+        const productId = node.dataset.productId || "";
+        const exact = initialProducts.find((row) => row.value === productId);
+        if (!exact) return;
+        renderModelOptions("", modelKey);
+        if (modelSearchInput) {
+            modelSearchInput.value = [exact.brand, exact.model, exact.storage, exact.color].filter(Boolean).join(" ");
+        }
+        renderImeiOptions(modelKey, productId);
+        if (searchInput) {
+            searchInput.value = exact.imei;
+        }
+        productSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        setSearchSuggestionVisibility(false);
+        return;
+    }
+
+    if (kind === "model") {
+        const modelKey = node.dataset.modelKey || "";
+        const match = modelCatalog.find((row) => row.key === modelKey);
+        if (!match) return;
+        if (modelSearchInput) {
+            modelSearchInput.value = [match.brand, match.model, match.storage, match.color].filter(Boolean).join(" ");
+        }
+        renderModelOptions(modelSearchInput ? modelSearchInput.value : "", modelKey);
+        renderImeiOptions(modelKey);
+        if (searchInput) {
+            searchInput.value = [match.brand, match.model].filter(Boolean).join(" ");
+        }
+        setSearchSuggestionVisibility(false);
+    }
+}
+
+if (productSelect && soldPriceInput && saleTypeSelect) {
+    productSelect.addEventListener("change", function () {
+        syncModelFromSelectedProduct();
+        setDefaultPrice();
+    });
+    saleTypeSelect.addEventListener("change", function () {
+        soldPriceInput.value = "";
+        setDefaultPrice();
+    });
+}
+
+if (modelSelect) {
+    modelSelect.addEventListener("change", function () {
+        renderImeiOptions(modelSelect.value);
+    });
+}
+
+if (modelSearchInput && modelSelect) {
+    modelSearchInput.addEventListener("input", function () {
+        const filtered = renderModelOptions(modelSearchInput.value, modelSelect.value);
+        if (filtered.length === 1 && normalizeToken(modelSearchInput.value)) {
+            modelSelect.value = filtered[0].key;
+            renderImeiOptions(filtered[0].key);
+            return;
+        }
+        renderImeiOptions(modelSelect.value);
+    });
+}
+
+if (searchInput && productSelect) {
+    searchInput.addEventListener("input", function () {
+        const value = searchInput.value.trim();
+        if (!value) {
+            setSearchSuggestionVisibility(false);
+            return;
+        }
+        renderSaleSuggestions(value);
+    });
+    searchInput.addEventListener("change", function () {
+        if (!renderSaleSuggestions(searchInput.value).length) {
+            selectProductFromCode(searchInput.value);
+            setSearchSuggestionVisibility(false);
+        }
+    });
+    searchInput.addEventListener("scan:applied", function () {
+        selectProductFromCode(searchInput.value);
+        setSearchSuggestionVisibility(false);
+    });
+    searchInput.addEventListener("focus", function () {
+        if (searchInput.value.trim()) {
+            renderSaleSuggestions(searchInput.value);
+        }
+    });
+    searchInput.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        const firstItem = saleSearchSuggest ? saleSearchSuggest.querySelector(".smart-search-item[data-primary='1'], .smart-search-item") : null;
+        if (firstItem) {
+            event.preventDefault();
+            applySaleSuggestionFromNode(firstItem);
+        }
+    });
+}
+
+if (saleSearchBtn && searchInput) {
+    saleSearchBtn.addEventListener("click", function () {
+        const value = searchInput.value.trim();
+        if (!value) {
+            searchInput.focus();
+            return;
+        }
+        const results = renderSaleSuggestions(value);
+        if (!results.length) {
+            selectProductFromCode(value);
+        }
+    });
+}
+
+if (saleSearchSuggest) {
+    saleSearchSuggest.addEventListener("click", function (event) {
+        const item = event.target.closest(".smart-search-item");
+        if (!item) return;
+        applySaleSuggestionFromNode(item);
+    });
+    document.addEventListener("click", function (event) {
+        if (!saleSearchSuggest.contains(event.target) && !(searchInput && searchInput.contains(event.target)) && !(saleSearchBtn && saleSearchBtn.contains(event.target))) {
+            setSearchSuggestionVisibility(false);
+        }
+    });
+}
+
+if (retailCustomerSelect) {
+    retailCustomerSelect.addEventListener("change", syncRetailFieldsFromSelect);
+}
+
+if (saleReceiverPhotoInput && saleReceiverPhotoPreview && saleReceiverPhotoImg && saleReceiverPhotoSaveCopy) {
+    saleReceiverPhotoInput.addEventListener("change", function () {
+        const file = saleReceiverPhotoInput.files && saleReceiverPhotoInput.files[0];
+        if (!file) {
+            saleReceiverPhotoPreview.hidden = true;
+            saleReceiverPhotoImg.removeAttribute("src");
+            saleReceiverPhotoSaveCopy.removeAttribute("href");
+            return;
+        }
+        const previewUrl = URL.createObjectURL(file);
+        saleReceiverPhotoImg.src = previewUrl;
+        saleReceiverPhotoPreview.hidden = false;
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        saleReceiverPhotoSaveCopy.href = previewUrl;
+        saleReceiverPhotoSaveCopy.download = `receiver-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
+    });
+}
+
+saleModeButtons.forEach((btn) => {
+    btn.addEventListener("click", function () {
+        setSaleMode(btn.dataset.saleMode || "WHOLESALE");
+    });
+});
+
+renderModelOptions("", "");
+renderImeiOptions("");
+setSaleMode(saleTypeSelect ? saleTypeSelect.value : "WHOLESALE");
+syncRetailFieldsFromSelect();
+</script>
+{% endblock %}

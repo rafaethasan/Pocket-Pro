@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Delete Product', 'প্রোডাক্ট ডিলিট') }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel danger-confirm-shell">
+    <div class="panel-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-shield-halved"></i>{{ txt('Strong Delete Permission', 'স্ট্রং ডিলিট পারমিশন') }}</h3>
+            <p class="muted-text">{{ txt('This action is protected so a wrong tap cannot remove live product data. Review the product first, then confirm manually.', 'এই action protected রাখা হয়েছে যেন ভুল tap-এ live product data delete না হয়। আগে product review করুন, তারপর manual confirmation দিন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="{{ url_for('imei_lookup', imei=product.imei) }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Open History', 'হিস্ট্রি খুলুন') }}</a>
+            <a class="btn-secondary" href="{{ next_path }}"><i class="fa-solid fa-arrow-left"></i>{{ txt('Cancel', 'বাতিল') }}</a>
+        </div>
+    </div>
+
+    <div class="entity-metric-grid danger-confirm-grid">
+        <article class="entity-metric-card">
+            <span>{{ tracking_code_label }}</span>
+            <strong>{{ product.imei }}</strong>
+            <small>{{ txt('Exact code must be typed to continue.', 'চালিয়ে যেতে exact code লিখতে হবে।') }}</small>
+        </article>
+        <article class="entity-metric-card">
+            <span>{{ txt('Product', 'প্রোডাক্ট') }}</span>
+            <strong>{{ product.brand }} {{ product.model }}</strong>
+            <small>{{ txt('Live inventory record', 'live inventory record') }}</small>
+        </article>
+        <article class="entity-metric-card">
+            <span>{{ txt('Status', 'স্ট্যাটাস') }}</span>
+            <strong>{{ product.status }}</strong>
+            <small>{{ txt('Deletion is blocked automatically if sale/history exists.', 'sale/history থাকলে delete অটো block থাকে।') }}</small>
+        </article>
+    </div>
+
+    <ul class="backup-note-list warning">
+        <li>{{ txt('Step 1: Type the exact product IMEI / tracking code.', 'ধাপ ১: exact product IMEI / tracking code লিখুন।') }}</li>
+        <li>{{ txt('Step 2: Type DELETE in capital letters.', 'ধাপ ২: capital letters-এ DELETE লিখুন।') }}</li>
+        <li>{{ txt('Step 3: Tick the final confirmation box.', 'ধাপ ৩: final confirmation box-এ tick দিন।') }}</li>
+        <li>{{ txt('Only admin can complete product delete.', 'শুধু admin product delete complete করতে পারবে।') }}</li>
+    </ul>
+
+    <form method="post" class="form-grid danger-confirm-form">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <label>
+            {{ txt('Type Exact Product IMEI', 'একদম সঠিক Product IMEI লিখুন') }} *
+            <input
+                type="text"
+                name="confirm_tracking_code"
+                maxlength="{{ tracking_code_max_length }}"
+                value="{{ confirm_tracking_code }}"
+                placeholder="{{ product.imei }}"
+                required
+            >
+        </label>
+        <label>
+            {{ txt('Type DELETE', 'DELETE লিখুন') }} *
+            <input
+                type="text"
+                name="confirm_delete_phrase"
+                value="{{ confirm_delete_phrase }}"
+                placeholder="DELETE"
+                required
+            >
+        </label>
+        <label class="inline-check span-2">
+            <input type="checkbox" name="confirm_ack" value="1" {% if confirm_ack %}checked{% endif %}>
+            <span>{{ txt('I understand this product record will be removed permanently and this action cannot be undone.', 'আমি বুঝেছি এই product record permanently remove হবে এবং এই action undo করা যাবে না।') }}</span>
+        </label>
+        <div class="form-actions span-2 module-inline-actions">
+            <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i>{{ txt('Delete Product Permanently', 'প্রোডাক্ট চিরতরে ডিলিট করুন') }}</button>
+            <a class="btn-secondary" href="{{ next_path }}"><i class="fa-solid fa-arrow-left"></i>{{ txt('Go Back Safely', 'নিরাপদে ফিরে যান') }}</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

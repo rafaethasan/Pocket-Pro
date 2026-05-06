@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="{{ ui_lang|default('bn') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f8a6f">
+    <meta name="application-name" content="Soft X">
+    <meta name="msapplication-TileColor" content="#0f8a6f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Soft X">
+    <title>{% block title %}Soft X{% endblock %}</title>
+    <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icons/icon-512.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+    {% if offline_mode %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/offline-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome-fallback.css') }}">
+    {% else %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260401g25') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='geo_clone.css', v='20260401g25') }}">
+</head>
+    {% set endpoint = request.endpoint or '' %}
+    {% set pocket_nav_mode = (is_pocket_module or endpoint in ['money_center', 'money_center_alias']) %}
+    {% set module_theme_key = ('pocket_money' if pocket_nav_mode else ((business_profile.primary_module if business_profile else 'MOBILE_WHOLESALE')|lower)) %}
+    {% set softx_icon_url = url_for('static', filename='brand/softx-icon-source.png') %}
+    {% set softx_logo_url = url_for('static', filename='brand/softx-logo-wordmark.png') %}
+    {% set business_mobile_view = (request.args.get('mview', 'home') if endpoint in ['dashboard', 'dashboard_alias'] else '') %}
+    <body class="softx-app {% if current_tenant %}tenant-app tenant-shell-active module-theme-{{ module_theme_key }}{% endif %}{% if current_tenant and endpoint in ['dashboard', 'dashboard_alias'] and business_mobile_view != 'dashboard' and not pocket_nav_mode %} dashboard-home-view{% endif %}{% if current_tenant and endpoint in ['dashboard', 'dashboard_alias'] and business_mobile_view == 'dashboard' and not pocket_nav_mode %} dashboard-analytics-view{% endif %}">
+    {% set tenant_shop_number = (current_tenant.phone if current_tenant and current_tenant.phone else (current_tenant.username if current_tenant else '')) %}
+    {% set tenant_home_url = (url_for('money_center') if current_tenant and is_pocket_module else url_for('dashboard')) %}
+    {% set header_home_url = (tenant_home_url if current_tenant else (url_for('admin_accounts') if is_superadmin else url_for('login_selector'))) %}
+    <header class="topbar">
+        {% if current_tenant %}
+        <button
+            type="button"
+            class="mobile-sidebar-toggle"
+            id="mobileSidebarToggle"
+            aria-label="{{ txt('Open sidebar menu', 'সাইডবার মেনু খুলুন') }}"
+            aria-expanded="false"
+        >
+            <span class="sr-only">{{ txt('Open sidebar menu', 'সাইডবার মেনু খুলুন') }}</span>
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <details class="mobile-top-dropdown" hidden>
+            <summary aria-label="{{ txt('Legacy quick menu', 'পুরনো কুইক মেনু') }}">
+                <i class="fa-solid fa-bars"></i>
+            </summary>
+            <div class="mobile-top-dropdown-menu">
+                <span class="mobile-drop-group">{{ txt('Main', 'মেইন') }}</span>
+                {% if role_access.dashboard %}<a href="{{ tenant_home_url }}" class="{% if endpoint in ['dashboard', 'money_center'] %}active{% endif %}"><i class="fa-solid fa-house"></i><span>{{ txt('Home', 'হোম') }}</span></a>{% endif %}
+                {% if role_access.money_center and 'POCKET_MONEY' in business_profile.enabled_modules %}<a href="{{ url_for('money_center') }}" class="{% if endpoint == 'money_center' %}active{% endif %}"><i class="fa-solid fa-wallet"></i><span>{{ txt('Money Center', 'মানি সেন্টার') }}</span></a>{% endif %}
+                {% if role_access.products and not pocket_nav_mode %}<a href="{{ url_for('products') }}" class="{% if endpoint == 'products' %}active{% endif %}"><i class="fa-solid fa-box-open"></i><span>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</span></a>{% endif %}
+                {% if role_access.sales and not pocket_nav_mode %}<a href="{{ url_for('sales') }}" class="{% if endpoint == 'sales' %}active{% endif %}"><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Wholesale Sale', 'হোলসেল সেল') }}</span></a>{% endif %}
+                {% if role_access.sales and not pocket_nav_mode %}<a href="{{ url_for('retail_sales') }}" class="{% if endpoint in ['retail_sales', 'retail_invoice'] %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{{ txt('Retail POS', 'রিটেইল POS') }}</span></a>{% endif %}
+                {% if role_access.returns and not pocket_nav_mode %}<a href="{{ url_for('returns') }}" class="{% if endpoint == 'returns' %}active{% endif %}"><i class="fa-solid fa-rotate-left"></i><span>{{ txt('Returns', 'রিটার্ন') }}</span></a>{% endif %}
+                {% if role_access.expenses %}<a href="{{ url_for('expenses') }}" class="{% if endpoint == 'expenses' %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{{ txt('Expense Module', 'খরচ মডিউল') }}</span></a>{% endif %}
+
+                <span class="mobile-drop-group">{{ txt('Partners', 'পার্টনার') }}</span>
+                {% if role_access.customers and not pocket_nav_mode %}<a href="{{ url_for('customers') }}" class="{% if endpoint in ['customers', 'customer_detail', 'customer_day_invoice'] %}active{% endif %}"><i class="fa-solid fa-store"></i><span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span></a>{% endif %}
+                {% if role_access.retail_customers and not pocket_nav_mode %}<a href="{{ url_for('retail_customers') }}" class="{% if endpoint == 'retail_customers' %}active{% endif %}"><i class="fa-solid fa-user-group"></i><span>{{ txt('Retail Customers', 'রিটেইল কাস্টমার') }}</span></a>{% endif %}
+                {% if role_access.suppliers and not pocket_nav_mode %}<a href="{{ url_for('suppliers') }}" class="{% if endpoint == 'suppliers' %}active{% endif %}"><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span></a>{% endif %}
+
+                <span class="mobile-drop-group">{{ txt('Reports', 'রিপোর্ট') }}</span>
+                {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="{% if endpoint in ['reports', 'due_list'] %}active{% endif %}"><i class="fa-solid fa-chart-line"></i><span>{{ txt('Profit Reports', 'প্রফিট রিপোর্ট') }}</span></a>{% endif %}
+                {% if role_access.stock_report and not pocket_nav_mode %}<a href="{{ url_for('stock_report') }}" class="{% if endpoint == 'stock_report' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i><span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span></a>{% endif %}
+
+                <span class="mobile-drop-group">{{ txt('Settings', 'সেটিংস') }}</span>
+                {% if role_access.account_password %}<a href="{{ url_for('account_password') }}" class="{% if endpoint in ['account_password', 'account_password_alias'] %}active{% endif %}"><i class="fa-solid fa-key"></i><span>{{ txt('Password', 'পাসওয়ার্ড') }}</span></a>{% endif %}
+                {% if role_access.edit_tools and not pocket_nav_mode %}<a href="{{ url_for('edit_tools') }}" class="{% if endpoint == 'edit_tools' %}active{% endif %}"><i class="fa-solid fa-screwdriver-wrench"></i><span>{{ txt('Edit Tools', 'এডিট টুলস') }}</span></a>{% endif %}
+                {% if role_access.shop_settings %}<a href="{{ url_for('shop_settings') }}" class="{% if endpoint == 'shop_settings' %}active{% endif %}"><i class="fa-solid fa-sliders"></i><span>{{ txt('Shop Settings', 'শপ সেটিংস') }}</span></a>{% endif %}
+            </div>
+        </details>
+        {% endif %}
+
+        <div class="brand">
+            <a class="brand-home-link" href="{{ header_home_url }}">
+                <span class="brand-logo" aria-hidden="true">
+                    {% if current_tenant %}
+                    {% if current_tenant.profile_image_path %}
+                    <img
+                        class="brand-shop-photo"
+                        src="{{ url_for('tenant_profile_image', filename=current_tenant.profile_image_path) }}"
+                        alt="{{ current_tenant.shop_name }}"
+                    >
+                    {% else %}
+                    <span class="brand-shop-logo"><img src="{{ softx_icon_url }}" alt="Soft X"></span>
+                    {% endif %}
+                    {% else %}
+                    <img class="brand-softx-wordmark" src="{{ softx_logo_url }}" alt="Soft X">
+                    {% endif %}
+                </span>
+                <div class="brand-copy">
+                    <h1>{% if current_tenant %}{{ current_tenant.shop_name }}{% else %}Soft X{% endif %}</h1>
+                    <p>
+                        {% if current_tenant %}
+                            <span class="brand-meta-default">{{ tenant_shop_number or '-' }}{% if current_tenant_user %} | {{ current_tenant_user.role }}{% endif %}</span>
+                            <span class="brand-meta-home">{{ txt('Free Plan', 'Free Plan') }}</span>
+                        {% else %}
+                            {{ txt('Smart Mobile Wholesale & POS', 'স্মার্ট মোবাইল হোলসেল ও POS') }}
+                        {% endif %}
+                    </p>
+                </div>
+            </a>
+        </div>
+
+        {% set show_home_quick_nav = current_tenant and endpoint in ['dashboard', 'dashboard_alias', 'money_center', 'money_center_alias'] %}
+        {% if show_home_quick_nav %}
+        <nav class="top-primary-nav">
+            {% if role_access.dashboard %}<a href="{{ tenant_home_url }}" class="{% if endpoint in ['dashboard', 'money_center'] %}active{% endif %}"><i class="fa-solid fa-house"></i><span>{{ txt('Home', 'হোম') }}</span></a>{% endif %}
+            {% if pocket_nav_mode %}<a href="{{ url_for('reports') }}" class="{% if endpoint in ['reports', 'daily_report'] %}active{% endif %}"><i class="fa-solid fa-chart-column"></i><span>{{ txt('Reports', 'রিপোর্ট') }}</span></a>{% endif %}
+            {% if role_access.products and not pocket_nav_mode %}<a href="{{ url_for('products') }}" class="{% if endpoint == 'products' %}active{% endif %}"><i class="fa-solid fa-box-open"></i><span>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</span></a>{% endif %}
+            {% if role_access.sales and not pocket_nav_mode %}<a href="{{ url_for('sales') }}" class="{% if endpoint == 'sales' %}active{% endif %}"><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Wholesale', 'হোলসেল') }}</span></a>{% endif %}
+            {% if role_access.sales and not pocket_nav_mode %}<a href="{{ url_for('retail_sales') }}" class="{% if endpoint in ['retail_sales', 'retail_invoice'] %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{{ txt('Retail POS', 'রিটেইল POS') }}</span></a>{% endif %}
+            {% if role_access.returns and not pocket_nav_mode %}<a href="{{ url_for('returns') }}" class="{% if endpoint == 'returns' %}active{% endif %}"><i class="fa-solid fa-rotate-left"></i><span>{{ txt('Returns', 'রিটার্ন') }}</span></a>{% endif %}
+            {% if role_access.customers and not pocket_nav_mode %}<a href="{{ url_for('customers') }}" class="{% if endpoint in ['customers', 'customer_detail', 'customer_day_invoice'] %}active{% endif %}"><i class="fa-solid fa-store"></i><span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span></a>{% endif %}
+            {% if role_access.suppliers and not pocket_nav_mode %}<a href="{{ url_for('suppliers') }}" class="{% if endpoint == 'suppliers' %}active{% endif %}"><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span></a>{% endif %}
+            {% if role_access.reports and not pocket_nav_mode %}<a href="{{ url_for('reports') }}" class="{% if endpoint in ['reports', 'due_list'] %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i><span>{{ txt('Reports', 'রিপোর্ট') }}</span></a>{% endif %}
+            {% if role_access.stock_report and not pocket_nav_mode %}<a href="{{ url_for('stock_report') }}" class="{% if endpoint == 'stock_report' %}active{% endif %}"><i class="fa-solid fa-warehouse"></i><span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span></a>{% endif %}
+            {% if not pocket_nav_mode %}<a href="{{ url_for('profile_center') }}" class="{% if endpoint == 'profile_center' %}active{% endif %}"><i class="fa-solid fa-circle-user"></i><span>{{ txt('Profile', 'প্রোফাইল') }}</span></a>{% endif %}
+            {% if role_access.expenses and pocket_nav_mode %}<a href="{{ url_for('expenses') }}" class="{% if endpoint == 'expenses' %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{{ txt('Expense', 'খরচ') }}</span></a>{% endif %}
+            {% if pocket_nav_mode %}<a href="{{ url_for('pocket_more') }}" class="{% if endpoint in ['pocket_more', 'account_password', 'account_password_alias'] %}active{% endif %}"><i class="fa-solid fa-ellipsis"></i><span>{{ txt('More', 'মোর') }}</span></a>{% endif %}
+        </nav>
+        {% endif %}
+
+        <div class="top-actions">
+            <details class="top-menu-dropdown">
+                <summary><i class="fa-solid fa-language"></i>{{ 'বাংলা' if ui_lang == 'bn' else 'English' }}</summary>
+                <div class="top-menu-dropdown-list">
+                    <a class="{% if ui_lang == 'bn' %}active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.path) }}">বাংলা</a>
+                    <a class="{% if ui_lang == 'en' %}active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.path) }}">English</a>
+                </div>
+            </details>
+            {% if current_tenant %}
+                <details class="top-menu-dropdown account-dropdown">
+                    <summary><i class="fa-solid fa-circle-user"></i>{{ txt('Account', 'অ্যাকাউন্ট') }}</summary>
+                    <div class="top-menu-dropdown-list">
+                        <div class="top-menu-meta">
+                            <i class="fa-solid fa-shop"></i>
+                            <span>{{ current_tenant.shop_name }}{% if current_tenant_user %} | {{ current_tenant_user.role }}{% endif %}</span>
+                        </div>
+                        {% if not pocket_nav_mode %}
+                        <a href="{{ url_for('profile_center') }}"><i class="fa-solid fa-user"></i>{{ txt('Profile', 'প্রোফাইল') }}</a>
+                        {% endif %}
+                        {% if role_access.account_password %}
+                        <a href="{{ url_for('account_password') }}"><i class="fa-solid fa-key"></i>{{ txt('Password', 'পাসওয়ার্ড') }}</a>
+                        {% endif %}
+                        {% if role_access.edit_tools and not pocket_nav_mode %}
+                        <a href="{{ url_for('edit_tools') }}"><i class="fa-solid fa-screwdriver-wrench"></i>{{ txt('Edit Tools', 'এডিট টুলস') }}</a>
+                        {% endif %}
+                        <a href="{{ url_for('client_logout') }}"><i class="fa-solid fa-right-from-bracket"></i>{{ txt('Logout', 'লগআউট') }}</a>
+                    </div>
+                </details>
+            {% elif is_superadmin %}
+                <details class="top-menu-dropdown">
+                    <summary><i class="fa-solid fa-user-shield"></i>Super Admin</summary>
+                    <div class="top-menu-dropdown-list">
+                        <a href="{{ url_for('admin_accounts') }}"><i class="fa-solid fa-users-gear"></i>Panel</a>
+                        <a href="{{ url_for('admin_logout') }}"><i class="fa-solid fa-right-from-bracket"></i>{{ txt('Logout', 'লগআউট') }}</a>
+                    </div>
+                </details>
+            {% else %}
+                <a class="top-action-link" href="{{ url_for('login_selector') }}"><i class="fa-solid fa-right-to-bracket"></i>{{ txt('Login', 'লগইন') }}</a>
+            {% endif %}
+        </div>
+
+    </header>
+
+    {% if current_tenant %}
+    <div class="tenant-shell">
+        <aside class="tenant-sidebar">
+            <div class="geo-sidebar-shell">
+                <div class="geo-sidebar-main">
+                    <div class="geo-sidebar-brand">
+                        <a class="geo-sidebar-brand-link" href="{{ tenant_home_url }}">
+                            <span class="geo-sidebar-brand-icon"><img src="{{ softx_icon_url }}" alt="Soft X"></span>
+                            <span class="geo-sidebar-brand-copy">
+                                <strong>Soft X</strong>
+                                <small>{{ txt('Business OS', 'বিজনেস OS') }}</small>
+                            </span>
+                        </a>
+                    </div>
+
+                    <nav class="geo-sidebar-nav" id="geoSidebarNav">
+                        <details class="geo-nav-group" {% if endpoint in ['dashboard', 'money_center', 'daily_report'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-house"></i><span>{{ txt('Dashboard', 'ড্যাশবোর্ড') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                <a class="geo-nav-link {% if endpoint in ['dashboard', 'money_center'] %}active{% endif %}" href="{{ tenant_home_url }}"><i class="fa-solid fa-chart-column"></i><span>{{ txt('Home View', 'হোম ভিউ') }}</span></a>
+                                {% if role_access.reports %}<a class="geo-nav-link {% if endpoint == 'daily_report' %}active{% endif %}" href="{{ url_for('daily_report') }}"><i class="fa-solid fa-calendar-day"></i><span>{{ txt('Daily Dashboard', 'ডেইলি ড্যাশবোর্ড') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['sales', 'retail_sales', 'retail_invoice', 'returns'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Sales', 'সেলস') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.sales and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'sales' %}active{% endif %}" href="{{ url_for('sales') }}"><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Wholesale Sale', 'হোলসেল সেল') }}</span></a>{% endif %}
+                                {% if role_access.sales and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint in ['retail_sales', 'retail_invoice'] %}active{% endif %}" href="{{ url_for('retail_sales') }}"><i class="fa-solid fa-receipt"></i><span>{{ txt('Retail POS', 'রিটেইল POS') }}</span></a>{% endif %}
+                                {% if role_access.returns and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'returns' %}active{% endif %}" href="{{ url_for('returns') }}"><i class="fa-solid fa-rotate-left"></i><span>{{ txt('Returns', 'রিটার্ন') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['products', 'model_catalog', 'imei_lookup', 'imei_lookup_alias'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-box-open"></i><span>{{ txt('Products', 'প্রোডাক্ট') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.products and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'products' %}active{% endif %}" href="{{ url_for('products') }}"><i class="fa-solid fa-box-open"></i><span>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</span></a>{% endif %}
+                                {% if role_access.model_catalog and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'model_catalog' %}active{% endif %}" href="{{ url_for('model_catalog') }}"><i class="fa-solid fa-tags"></i><span>{{ txt('Model Catalog', 'মডেল ক্যাটালগ') }}</span></a>{% endif %}
+                                {% if role_access.imei_lookup and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint in ['imei_lookup', 'imei_lookup_alias'] %}active{% endif %}" href="{{ url_for('imei_lookup') }}"><i class="fa-solid fa-magnifying-glass"></i><span>{{ tracking_lookup_label }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['stock_report', 'edit_tools'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-boxes-stacked"></i><span>{{ txt('Stock List', 'স্টক লিস্ট') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.stock_report and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'stock_report' %}active{% endif %}" href="{{ url_for('stock_report') }}"><i class="fa-solid fa-warehouse"></i><span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span></a>{% endif %}
+                                {% if role_access.edit_tools and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'edit_tools' %}active{% endif %}" href="{{ url_for('edit_tools') }}"><i class="fa-solid fa-pen-to-square"></i><span>{{ txt('Edit Tools', 'এডিট টুলস') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        {% if not pocket_nav_mode %}
+                        <details class="geo-nav-group" {% if endpoint in ['customers', 'customer_detail', 'customer_day_invoice', 'retail_customers'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-users"></i><span>{{ txt('Customers', 'কাস্টমার') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.customers %}<a class="geo-nav-link {% if endpoint in ['customers', 'customer_detail', 'customer_day_invoice'] %}active{% endif %}" href="{{ url_for('customers') }}"><i class="fa-solid fa-store"></i><span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span></a>{% endif %}
+                                {% if role_access.retail_customers %}<a class="geo-nav-link {% if endpoint == 'retail_customers' %}active{% endif %}" href="{{ url_for('retail_customers') }}"><i class="fa-solid fa-user-group"></i><span>{{ txt('Retail Customers', 'রিটেইল কাস্টমার') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['suppliers'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.suppliers %}<a class="geo-nav-link {% if endpoint == 'suppliers' %}active{% endif %}" href="{{ url_for('suppliers') }}"><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Supplier List', 'সাপ্লায়ার লিস্ট') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+                        {% endif %}
+
+                        <details class="geo-nav-group" {% if endpoint in ['expenses', 'money_center'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-wallet"></i><span>{{ txt('Expenses', 'খরচ') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.expenses %}<a class="geo-nav-link {% if endpoint == 'expenses' %}active{% endif %}" href="{{ url_for('expenses') }}"><i class="fa-solid fa-wallet"></i><span>{{ txt('Expense Module', 'খরচ মডিউল') }}</span></a>{% endif %}
+                                {% if role_access.money_center and 'POCKET_MONEY' in business_profile.enabled_modules %}<a class="geo-nav-link {% if endpoint == 'money_center' %}active{% endif %}" href="{{ url_for('money_center') }}"><i class="fa-solid fa-money-bill-wave"></i><span>{{ txt('Money Center', 'মানি সেন্টার') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['reports', 'backups', 'download_backup'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-chart-line"></i><span>{{ txt('Reports', 'রিপোর্ট') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if role_access.reports %}<a class="geo-nav-link {% if endpoint in ['reports', 'due_list'] %}active{% endif %}" href="{{ url_for('reports') }}"><i class="fa-solid fa-chart-pie"></i><span>{{ txt('Profit Reports', 'প্রফিট রিপোর্ট') }}</span></a>{% endif %}
+                                {% if role_access.backups %}<a class="geo-nav-link {% if endpoint in ['backups', 'download_backup'] %}active{% endif %}" href="{{ url_for('backups') }}"><i class="fa-solid fa-database"></i><span>{{ txt('Backups', 'ব্যাকআপ') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+
+                        <details class="geo-nav-group" {% if endpoint in ['profile_center', 'team_users', 'team_toggle_user', 'team_reset_password', 'team_change_role', 'shop_settings', 'account_password', 'account_password_alias'] %}open{% endif %}>
+                            <summary><i class="fa-solid fa-gear"></i><span>{{ txt('Settings', 'সেটিংস') }}</span><i class="fa-solid fa-chevron-down"></i></summary>
+                            <div class="geo-nav-group-links">
+                                {% if not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'profile_center' %}active{% endif %}" href="{{ url_for('profile_center') }}"><i class="fa-solid fa-circle-user"></i><span>{{ txt('Profile', 'প্রোফাইল') }}</span></a>{% endif %}
+                                {% if role_access.account_password %}<a class="geo-nav-link {% if endpoint in ['account_password', 'account_password_alias'] %}active{% endif %}" href="{{ url_for('account_password') }}"><i class="fa-solid fa-key"></i><span>{{ txt('Password', 'পাসওয়ার্ড') }}</span></a>{% endif %}
+                                {% if role_access.team_users and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint in ['team_users', 'team_toggle_user', 'team_reset_password', 'team_change_role'] %}active{% endif %}" href="{{ url_for('team_users') }}"><i class="fa-solid fa-users-gear"></i><span>{{ txt('Team Users', 'টিম ইউজার') }}</span></a>{% endif %}
+                                {% if role_access.shop_settings and not pocket_nav_mode %}<a class="geo-nav-link {% if endpoint == 'shop_settings' %}active{% endif %}" href="{{ url_for('shop_settings') }}"><i class="fa-solid fa-store"></i><span>{{ txt('Shop Settings', 'শপ সেটিংস') }}</span></a>{% endif %}
+                            </div>
+                        </details>
+                    </nav>
+                    <div class="geo-sidebar-footer">
+                        <div class="geo-sidebar-plan-card">
+                            <span class="geo-sidebar-plan-chip">{{ txt((current_tenant.plan_code if current_tenant and current_tenant.plan_code else 'Premium'), (current_tenant.plan_code if current_tenant and current_tenant.plan_code else 'প্রিমিয়াম')) }}</span>
+                            <strong>{{ txt('Premium', 'প্রিমিয়াম') }}</strong>
+                            <small>
+                                {{ txt('Paid Till', 'Paid Till') }}:
+                                {{ current_tenant.paid_until or 'N/A' }}
+                            </small>
+                            {% if role_access.shop_settings and not pocket_nav_mode %}
+                            <a class="geo-sidebar-plan-btn" href="{{ url_for('shop_settings') }}">{{ txt('Upgrade Now', 'Upgrade Now') }}</a>
+                            {% else %}
+                            <a class="geo-sidebar-plan-btn" href="{{ url_for('account_password') }}">{{ txt('Open Settings', 'Open Settings') }}</a>
+                            {% endif %}
+                        </div>
+                        <div class="geo-sidebar-lang-switch">
+                            <a class="geo-nav-link {% if ui_lang == 'bn' %}active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.path) }}"><i class="fa-solid fa-language"></i><span>বাংলা</span></a>
+                            <a class="geo-nav-link {% if ui_lang == 'en' %}active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.path) }}"><i class="fa-solid fa-language"></i><span>English</span></a>
+                        </div>
+                        <a class="geo-nav-link" href="{{ url_for('client_logout') }}"><i class="fa-solid fa-right-from-bracket"></i><span>{{ txt('Logout', 'লগআউট') }}</span></a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        {% endif %}
+        {% if current_tenant %}
+        <main class="container tenant-content">
+        {% else %}
+        <main class="container">
+        {% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="alerts">
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    {% if current_tenant and pocket_nav_mode %}
+    <nav class="pocket-bottom-nav" aria-label="{{ txt('Pocket quick navigation', 'পকেট কুইক নেভিগেশন') }}">
+        <a href="{{ url_for('money_center') }}" class="{% if endpoint in ['money_center', 'money_center_alias', 'dashboard'] %}active{% endif %}">
+            <i class="fa-solid fa-house"></i>
+            <span>{{ txt('Home', 'হোম') }}</span>
+        </a>
+        <a href="{{ url_for('reports') }}" class="{% if endpoint in ['reports', 'daily_report'] %}active{% endif %}">
+            <i class="fa-solid fa-chart-column"></i>
+            <span>{{ txt('Reports', 'রিপোর্ট') }}</span>
+        </a>
+        <a href="{{ url_for('expenses') }}" class="{% if endpoint == 'expenses' %}active{% endif %}">
+            <i class="fa-solid fa-wallet"></i>
+            <span>{{ txt('Expense', 'খরচ') }}</span>
+        </a>
+        <a href="{{ url_for('pocket_more') }}" class="{% if endpoint == 'pocket_more' or endpoint in ['account_password', 'account_password_alias'] %}active{% endif %}">
+            <i class="fa-solid fa-ellipsis"></i>
+            <span>{{ txt('More', 'মোর') }}</span>
+        </a>
+    </nav>
+    {% elif current_tenant %}
+    <nav class="business-bottom-nav no-print" aria-label="{{ txt('Business quick navigation', 'বিজনেস কুইক নেভিগেশন') }}">
+        <a href="{{ url_for('dashboard', mview='home') }}" class="{% if endpoint in ['dashboard', 'dashboard_alias'] and business_mobile_view != 'dashboard' %}active{% endif %}">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('dashboard', mview='dashboard') }}" class="{% if (endpoint in ['dashboard', 'dashboard_alias'] and business_mobile_view == 'dashboard') or endpoint in ['daily_report', 'stock_report', 'imei_lookup', 'imei_lookup_alias'] %}active{% endif %}">
+            <i class="fa-solid fa-chart-simple"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{{ url_for('products', pview='menu', pscreen='menu') if role_access.products else (url_for('sales') if role_access.sales else tenant_home_url) }}" class="is-accent {% if endpoint in ['products', 'model_catalog'] %}active{% endif %}">
+            <i class="fa-solid fa-box-open"></i>
+            <span>Product</span>
+        </a>
+        <a href="{{ url_for('reports', mscreen='menu') if role_access.reports else tenant_home_url }}" class="{% if endpoint in ['reports', 'due_list'] %}active{% endif %}">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Reports</span>
+        </a>
+        <a href="{{ url_for('profile_center') }}" class="{% if endpoint in ['profile_center', 'shop_settings', 'account_password', 'account_password_alias', 'edit_tools', 'customers', 'customer_detail', 'customer_day_invoice', 'retail_customers', 'suppliers', 'team_users'] %}active{% endif %}">
+            <i class="fa-solid fa-circle-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+    {% endif %}
+    {% if current_tenant %}
+    </div>
+    {% endif %}
+
+    {% if current_tenant %}
+    <div class="softx-mobile-quickfab-wrap no-print" id="softxMobileQuickWrap" aria-hidden="false">
+        <button
+            type="button"
+            class="softx-mobile-quickfab"
+            id="softxMobileQuickFab"
+            aria-label="{{ txt('Open quick launcher', 'কুইক লঞ্চার খুলুন') }}"
+            aria-expanded="false"
+            aria-controls="softxMobileQuickPanel"
+        >
+            <span class="softx-mobile-quickfab-icon" aria-hidden="true"></span>
+        </button>
+        <section class="softx-mobile-quickpanel" id="softxMobileQuickPanel" hidden>
+            <div class="softx-mobile-quickpanel-head">
+                <div>
+                    <strong>{{ txt('Quick Launcher', 'কুইক লঞ্চার') }}</strong>
+                    <small>{{ txt('Top 10 important modules.', 'Top 10 দরকারি মডিউল।') }}</small>
+                </div>
+                <div class="softx-mobile-quickpanel-actions">
+                    <button type="button" class="softx-mobile-quickclose" id="softxMobileQuickClose" aria-label="{{ txt('Close quick launcher', 'কুইক লঞ্চার বন্ধ করুন') }}">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="softx-mobile-quickgrid">
+                {% if pocket_nav_mode %}
+                    <a href="{{ tenant_home_url }}" class="softx-mobile-quicklink">
+                        <i class="fa-solid fa-house"></i>
+                        <span>{{ txt('Home', 'হোম') }}</span>
+                    </a>
+                    {% if role_access.expenses %}
+                    <a href="{{ url_for('expenses') }}" class="softx-mobile-quicklink">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>{{ txt('Expense', 'খরচ') }}</span>
+                    </a>
+                    {% endif %}
+                    {% if role_access.reports %}
+                    <a href="{{ url_for('reports') }}" class="softx-mobile-quicklink">
+                        <i class="fa-solid fa-chart-column"></i>
+                        <span>{{ txt('Reports', 'রিপোর্ট') }}</span>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('pocket_more') }}" class="softx-mobile-quicklink">
+                        <i class="fa-solid fa-ellipsis"></i>
+                        <span>{{ txt('More', 'মোর') }}</span>
+                    </a>
+                {% else %}
+                    {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Wholesale', 'হোলসেল') }}</span></a>{% endif %}
+                    {% if role_access.products %}<a href="{{ url_for('products') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-box-open"></i><span>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</span></a>{% endif %}
+                    {% if role_access.sales %}<a href="{{ url_for('retail_sales') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-receipt"></i><span>{{ txt('Retail POS', 'রিটেইল POS') }}</span></a>{% endif %}
+                    {% if role_access.sales %}<a href="{{ url_for('due_list', dview='due') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-hand-holding-dollar"></i><span>{{ txt('Due Collect', 'ডিউ কালেক্ট') }}</span></a>{% endif %}
+                    {% if role_access.customers %}<a href="{{ url_for('customers') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-store"></i><span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span></a>{% endif %}
+                    {% if role_access.suppliers %}<a href="{{ url_for('suppliers') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span></a>{% endif %}
+                    {% if role_access.returns %}<a href="{{ url_for('returns') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-rotate-left"></i><span>{{ txt('Returns', 'রিটার্ন') }}</span></a>{% endif %}
+                    {% if role_access.reports %}<a href="{{ url_for('reports', mscreen='menu') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-chart-pie"></i><span>{{ txt('Reports', 'রিপোর্ট') }}</span></a>{% endif %}
+                    {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-warehouse"></i><span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span></a>{% endif %}
+                    {% if role_access.shop_settings %}<a href="{{ url_for('shop_settings') }}" class="softx-mobile-quicklink"><i class="fa-solid fa-sliders"></i><span>{{ txt('Settings', 'সেটিংস') }}</span></a>{% endif %}
+                {% endif %}
+            </div>
+        </section>
+    </div>
+    {% endif %}
+
+    <footer class="softx-footer">
+        <span class="softx-footer-logo" aria-hidden="true">
+            <img src="{{ softx_logo_url }}" alt="Soft X">
+        </span>
+        <div class="softx-footer-copy">
+            <strong>Soft X</strong>
+            <small>{{ txt('Smart Mobile Wholesale & POS Platform', 'স্মার্ট মোবাইল হোলসেল ও POS প্ল্যাটফর্ম') }}</small>
+        </div>
+    </footer>
+
+    <script>
+    (function () {
+        function syncDeviceClasses() {
+            const ua = navigator.userAgent || "";
+            const mobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            const compactViewport = window.matchMedia("(max-width: 960px)").matches;
+            const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+            const touchDevice = coarsePointer || ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+            const mobileDevice = mobileUa || (compactViewport && touchDevice);
+            document.documentElement.classList.toggle("is-mobile-device", mobileDevice);
+            document.body.classList.toggle("is-mobile-device", mobileDevice);
+            document.body.classList.toggle("is-touch-device", touchDevice);
+            document.body.classList.toggle(
+                "is-standalone-app",
+                window.matchMedia("(display-mode: standalone)").matches || Boolean(navigator.standalone)
+            );
+        }
+
+        syncDeviceClasses();
+        window.addEventListener("resize", syncDeviceClasses, { passive: true });
+    })();
+    </script>
+    <script>window.SOFTX_OFFLINE_MODE = {{ "true" if offline_mode else "false" }};</script>
+    {% if offline_mode %}
+    <script src="{{ url_for('static', filename='vendor/html5-qrcode.min.js') }}"></script>
+    {% else %}
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+    {% endif %}
+    <script src="{{ url_for('static', filename='scan.js') }}"></script>
+    <script src="{{ url_for('static', filename='print.js') }}"></script>
+    <script src="{{ url_for('static', filename='pwa-install.js') }}"></script>
+    {% if current_tenant %}
+    <script>
+    (function () {
+        const searchInput = document.getElementById("sideMenuSearch");
+        const sideRoot = document.querySelector(".tenant-sidebar");
+        const topDetails = Array.from(document.querySelectorAll(".top-menu-dropdown"));
+        const mobileToggle = document.getElementById("mobileSidebarToggle");
+        const quickWrap = document.getElementById("softxMobileQuickWrap");
+        const quickFab = document.getElementById("softxMobileQuickFab");
+        const quickPanel = document.getElementById("softxMobileQuickPanel");
+        const quickClose = document.getElementById("softxMobileQuickClose");
+        const mobileMedia = window.matchMedia("(max-width: 960px)");
+        function closeMobileSidebar() {
+            document.body.classList.remove("sidebar-open");
+            if (mobileToggle) mobileToggle.setAttribute("aria-expanded", "false");
+        }
+
+        function closeQuickPanel() {
+            if (!quickPanel || !quickFab) return;
+            quickFab.setAttribute("aria-expanded", "false");
+            document.body.classList.remove("quickfab-open");
+            if (quickWrap) quickWrap.classList.remove("is-open");
+            quickPanel.hidden = true;
+        }
+
+        function toggleQuickPanel() {
+            if (!quickPanel || !quickFab || !mobileMedia.matches) return;
+            const shouldOpen = quickPanel.hidden;
+            if (!shouldOpen) {
+                closeQuickPanel();
+                return;
+            }
+            quickPanel.hidden = false;
+            quickFab.setAttribute("aria-expanded", "true");
+            document.body.classList.add("quickfab-open");
+            if (quickWrap) quickWrap.classList.add("is-open");
+        }
+
+        function toggleMobileSidebar() {
+            const willOpen = !document.body.classList.contains("sidebar-open");
+            document.body.classList.toggle("sidebar-open", willOpen);
+            if (mobileToggle) mobileToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        }
+
+        if (mobileToggle && sideRoot) {
+            mobileToggle.addEventListener("click", () => {
+                if (!mobileMedia.matches) return;
+                closeQuickPanel();
+                toggleMobileSidebar();
+            });
+        }
+
+        function bindTapActivate(element, handler) {
+            if (!element) return;
+            let lastHandledAt = 0;
+            element.style.touchAction = "manipulation";
+            const invoke = (event) => {
+                const now = Date.now();
+                if (now - lastHandledAt < 320) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                lastHandledAt = now;
+                handler(event);
+            };
+            if (window.PointerEvent) {
+                element.addEventListener("pointerup", (event) => {
+                    if (event.pointerType === "touch" || event.pointerType === "pen" || event.pointerType === "mouse") {
+                        invoke(event);
+                    }
+                });
+            } else {
+                element.addEventListener("touchend", invoke, { passive: false });
+            }
+            element.addEventListener("click", invoke);
+        }
+
+        if (quickFab) {
+            const handleQuickFab = (event) => {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                closeMobileSidebar();
+                toggleQuickPanel();
+            };
+            bindTapActivate(quickFab, handleQuickFab);
+        }
+        if (quickClose) {
+            const handleQuickClose = (event) => {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                closeQuickPanel();
+            };
+            bindTapActivate(quickClose, handleQuickClose);
+        }
+        if (quickPanel) {
+            Array.from(quickPanel.querySelectorAll("a")).forEach((link) => {
+                link.addEventListener("click", () => {
+                    closeQuickPanel();
+                });
+            });
+            Array.from(quickPanel.querySelectorAll("[data-softx-back]")).forEach((button) => {
+                button.addEventListener("click", () => {
+                    closeQuickPanel();
+                    if (window.history.length > 1) {
+                        window.history.back();
+                        return;
+                    }
+                    const homeUrl = button.getAttribute("data-home-url");
+                    if (homeUrl) {
+                        window.location.href = homeUrl;
+                    }
+                });
+            });
+        }
+
+        if (topDetails.length) {
+            topDetails.forEach((detailEl) => {
+                const summaryEl = detailEl.querySelector("summary");
+                if (summaryEl) {
+                    summaryEl.addEventListener("click", () => {
+                        topDetails.forEach((otherEl) => {
+                            if (otherEl !== detailEl) {
+                                otherEl.removeAttribute("open");
+                            }
+                        });
+                    });
+                }
+
+                const links = Array.from(detailEl.querySelectorAll("a"));
+                links.forEach((link) => {
+                    link.addEventListener("click", () => {
+                        detailEl.removeAttribute("open");
+                    });
+                });
+            });
+        }
+
+        document.addEventListener("click", (event) => {
+            topDetails.forEach((detailEl) => {
+                if (!detailEl.contains(event.target)) {
+                    detailEl.removeAttribute("open");
+                }
+            });
+            if (
+                mobileMedia.matches &&
+                sideRoot &&
+                document.body.classList.contains("sidebar-open") &&
+                !sideRoot.contains(event.target) &&
+                !(mobileToggle && mobileToggle.contains(event.target))
+            ) {
+                closeMobileSidebar();
+            }
+            if (
+                mobileMedia.matches &&
+                quickPanel &&
+                !quickPanel.hidden &&
+                !quickPanel.contains(event.target) &&
+                !(quickFab && quickFab.contains(event.target))
+            ) {
+                closeQuickPanel();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeQuickPanel();
+                closeMobileSidebar();
+            }
+        });
+
+        if (sideRoot) {
+            const sideLinksForMobile = Array.from(sideRoot.querySelectorAll("a"));
+            sideLinksForMobile.forEach((link) => {
+                link.addEventListener("click", () => {
+                    if (mobileMedia.matches) closeMobileSidebar();
+                });
+            });
+        }
+
+        window.addEventListener("resize", () => {
+            if (!mobileMedia.matches) {
+                closeMobileSidebar();
+                closeQuickPanel();
+            }
+        });
+
+        if (!sideRoot) return;
+
+        const links = Array.from(sideRoot.querySelectorAll(".geo-nav-link"));
+        const groups = Array.from(sideRoot.querySelectorAll(".geo-nav-group"));
+
+        groups.forEach((group) => {
+            group.dataset.defaultOpen = group.hasAttribute("open") ? "1" : "0";
+            const summaryEl = group.querySelector("summary");
+            if (!summaryEl) return;
+            summaryEl.addEventListener("click", () => {
+                window.setTimeout(() => {
+                    if (!group.open) return;
+                    groups.forEach((otherGroup) => {
+                        if (otherGroup !== group) {
+                            otherGroup.open = false;
+                        }
+                    });
+                }, 0);
+            });
+        });
+
+        if (!searchInput) return;
+
+        function applyFilter() {
+            const q = (searchInput.value || "").trim().toLowerCase();
+            if (!q) {
+                links.forEach((link) => { link.style.display = ""; });
+                groups.forEach((group) => {
+                    group.style.display = "";
+                    group.open = group.dataset.defaultOpen === "1";
+                });
+                return;
+            }
+
+            links.forEach((link) => {
+                const text = (link.textContent || "").toLowerCase();
+                link.style.display = text.includes(q) ? "" : "none";
+            });
+
+            groups.forEach((group) => {
+                const visibleLinks = Array.from(group.querySelectorAll(".geo-nav-link"))
+                    .filter((link) => link.style.display !== "none");
+                group.style.display = visibleLinks.length ? "" : "none";
+                if (visibleLinks.length) {
+                    group.open = true;
+                }
+            });
+        }
+
+        searchInput.addEventListener("input", applyFilter);
+    })();
+    </script>
+    {% endif %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

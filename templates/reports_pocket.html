@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+{% block title %}Money Reports | Soft X{% endblock %}
+{% block content %}
+<section class="pocket-report-shell">
+<section class="panel reports2-filter-panel pocket-report-hero">
+    <div class="panel-head pocket-report-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-wallet"></i>{{ txt('Personal Money Reports', 'পার্সোনাল মানি রিপোর্ট') }}</h3>
+            <p class="muted-text pocket-report-subtitle">{{ txt('A mobile-first money view with fast trend, category and ledger insight.', 'দ্রুত trend, category এবং ledger insight দেখার mobile-first money view।') }}</p>
+        </div>
+        <div class="toolbar reports2-head-actions">
+            <a class="link-btn" href="{{ url_for('reports_export_csv', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, status=status_filter) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+        </div>
+    </div>
+
+    <div class="pocket-report-summary-band">
+        <article class="pocket-report-period-card">
+            <span>{{ txt('Current Range', 'বর্তমান রেঞ্জ') }}</span>
+            <strong>{{ txt(period_label, period_label) }}</strong>
+            <small>{{ date_from }} - {{ date_to }}</small>
+        </article>
+        <article class="pocket-native-stat income">
+            <span>{{ txt('Income', 'আয়') }}</span>
+            <strong>{{ selected_metrics.income|money }}</strong>
+            <small>{{ txt('Approved total', 'Approved total') }}</small>
+        </article>
+        <article class="pocket-native-stat expense">
+            <span>{{ txt('Expense', 'খরচ') }}</span>
+            <strong>{{ selected_metrics.expense|money }}</strong>
+            <small>{{ txt('Approved total', 'Approved total') }}</small>
+        </article>
+        <article class="pocket-native-stat net">
+            <span>{{ txt('Net Balance', 'নেট ব্যালেন্স') }}</span>
+            <strong>{{ selected_metrics.net_balance|money }}</strong>
+            <small>{{ txt('Income - Expense', 'আয় - খরচ') }}</small>
+        </article>
+    </div>
+
+    <div class="reports2-presets pocket-report-presets">
+        {% for item in quick_range_links %}
+        <a href="{{ url_for('reports', preset=item.preset, branch_id=branch_filter, status=status_filter) }}" class="{% if preset == item.preset %}active{% endif %}">{{ item.label }}</a>
+        {% endfor %}
+        <a href="{{ url_for('reports', preset='lifetime', branch_id=branch_filter, status=status_filter) }}" class="{% if preset == 'lifetime' %}active{% endif %}">{{ txt('Lifetime', 'লাইফটাইম') }}</a>
+    </div>
+
+    <div class="pocket-report-filter-card" id="reportFilterCard">
+        <form method="get" class="reports2-filter-bar">
+            <input type="hidden" name="preset" value="custom">
+
+            <label>
+                {{ txt('Date From', 'শুরুর তারিখ') }}
+                <input type="date" name="date_from" value="{{ date_from }}" required>
+            </label>
+
+            <label>
+                {{ txt('Date To', 'শেষ তারিখ') }}
+                <input type="date" name="date_to" value="{{ date_to }}" required>
+            </label>
+
+            <label>
+                {{ txt('Branch', 'ব্রাঞ্চ') }}
+                <select name="branch_id">
+                    <option value="ALL" {% if branch_filter == 'ALL' %}selected{% endif %}>{{ txt('All Branches', 'সব ব্রাঞ্চ') }}</option>
+                    {% for item in branches %}
+                    <option value="{{ item.id }}" {% if branch_filter == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                {{ txt('Ledger Status', 'লেজার স্ট্যাটাস') }}
+                <select name="status">
+                    <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>{{ txt('All', 'সব') }}</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>{{ txt('Approved', 'Approved') }}</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>{{ txt('Pending', 'Pending') }}</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>{{ txt('Rejected', 'Rejected') }}</option>
+                </select>
+            </label>
+
+            <div class="reports2-filter-submit">
+                <button type="submit"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Apply Filter', 'ফিল্টার চালু করুন') }}</button>
+            </div>
+        </form>
+    </div>
+    <p class="insight-line">{{ txt('Why this matters: This report is only for personal income, expense, net balance and category trend.', 'Why this matters: এই রিপোর্টে শুধু personal income, expense, net balance ও category trend দেখানো হয়।') }}</p>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-wallet"></i>{{ txt('Money Report Tools', 'মানি রিপোর্ট টুলস') }}</h4>
+        <p>{{ txt('Only report-specific actions stay here, so the report screen feels more like a native app.', 'শুধু report-specific action এখানে রাখা হয়েছে, যাতে screenটা native app-এর মতো clean লাগে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <a class="link-btn" href="{{ url_for('reports_export_csv', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, status=status_filter) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Report', 'রিপোর্ট প্রিন্ট') }}</button>
+    </div>
+</section>
+
+<section class="panel pocket-report-section">
+    <h3 class="section-title"><i class="fa-solid fa-table-columns"></i>{{ txt('Executive Cards', 'এক্সিকিউটিভ কার্ড') }}</h3>
+    <div class="reports2-exec-grid">
+        {% set exec_periods = [
+            {'key': 'today', 'en': 'Today', 'bn': 'আজ'},
+            {'key': 'mtd', 'en': 'MTD', 'bn': 'মাস-টু-ডেট'},
+            {'key': 'ytd', 'en': 'YTD', 'bn': 'বছর-টু-ডেট'},
+            {'key': 'lifetime', 'en': 'Lifetime', 'bn': 'লাইফটাইম'}
+        ] %}
+        {% for p in exec_periods %}
+        {% set card = executive_cards[p.key] %}
+        <article class="reports2-exec-card">
+            <header>{{ txt(p.en, p.bn) }}</header>
+            <dl>
+                <div><dt>{{ txt('Approved Income', 'অনুমোদিত আয়') }}</dt><dd>{{ card.income|money }}</dd></div>
+                <div><dt>{{ txt('Approved Expense', 'অনুমোদিত খরচ') }}</dt><dd>{{ card.expense|money }}</dd></div>
+                <div><dt>{{ txt('Net Balance', 'নেট ব্যালেন্স') }}</dt><dd>{{ card.net_balance|money }}</dd></div>
+                <div><dt>{{ txt('Pending Income', 'Pending আয়') }}</dt><dd>{{ card.pending_income|money }}</dd></div>
+                <div><dt>{{ txt('Pending Expense', 'Pending খরচ') }}</dt><dd>{{ card.pending_expense|money }}</dd></div>
+            </dl>
+        </article>
+        {% endfor %}
+    </div>
+    <p class="insight-line">{{ txt('Why this matters: You can instantly compare approved and pending balance before making spending decisions.', 'Why this matters: approved আর pending balance একসাথে দেখলে খরচের সিদ্ধান্ত দ্রুত ও নিরাপদ হয়।') }}</p>
+</section>
+
+<section class="split pocket-report-split">
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-arrow-trend-up"></i>{{ txt('Income Contribution', 'আয় কন্ট্রিবিউশন') }}</h3>
+        <div class="reports2-donut-wrap">
+            <div id="incomeDonut" class="reports2-donut"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                            <th>{{ txt('Entries', 'এন্ট্রি') }}</th>
+                            <th>{{ txt('Amount', 'পরিমাণ') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in income_category_rows %}
+                        <tr>
+                            <td><a class="link-btn" href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, status=status_filter, drill_kind='income_category', drill_key=row.category) }}">{{ category_label('income', row.category) }}</a></td>
+                            <td>{{ row.total_entry }}</td>
+                            <td>{{ row.total_amount|money }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3">{{ txt('No approved income found in selected range.', 'নির্বাচিত সময়ে approved income পাওয়া যায়নি।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-arrow-trend-down"></i>{{ txt('Expense Contribution', 'খরচ কন্ট্রিবিউশন') }}</h3>
+        <div class="reports2-donut-wrap">
+            <div id="expenseDonut" class="reports2-donut"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                            <th>{{ txt('Entries', 'এন্ট্রি') }}</th>
+                            <th>{{ txt('Amount', 'পরিমাণ') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in expense_category_rows %}
+                        <tr>
+                            <td><a class="link-btn" href="{{ url_for('reports', preset=preset, date_from=date_from, date_to=date_to, branch_id=branch_filter, status=status_filter, drill_kind='expense_category', drill_key=row.category) }}">{{ category_label('expense', row.category) }}</a></td>
+                            <td>{{ row.total_entry }}</td>
+                            <td>{{ row.total_amount|money }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3">{{ txt('No approved expense found in selected range.', 'নির্বাচিত সময়ে approved expense পাওয়া যায়নি।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="split pocket-report-split">
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-chart-area"></i>{{ txt('Trend View', 'ট্রেন্ড ভিউ') }}</h3>
+        <div class="reports2-trend-legend">
+            <span><i class="dot dot-revenue"></i>{{ txt('Income', 'আয়') }}</span>
+            <span><i class="dot dot-exp"></i>{{ txt('Expense', 'খরচ') }}</span>
+            <span><i class="dot dot-net"></i>{{ txt('Net', 'নেট') }}</span>
+        </div>
+        <canvas id="pocketTrendChart" class="reports2-line-canvas" height="220"></canvas>
+        <p class="insight-line">{{ txt('Why this matters: Daily trend quickly shows income drop or expense spike before month-end.', 'Why this matters: Daily trend দেখে income drop বা expense spike আগেই ধরা যায়।') }}</p>
+    </article>
+
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-lightbulb"></i>{{ txt('Decision Snapshot', 'দ্রুত সিদ্ধান্ত স্ন্যাপশট') }}</h3>
+        <div class="reports2-snapshot-grid">
+            <article>
+                <span>{{ txt('Approved Income', 'Approved আয়') }}</span>
+                <strong>{{ selected_metrics.income|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Approved Expense', 'Approved খরচ') }}</span>
+                <strong>{{ selected_metrics.expense|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Net Balance', 'নেট ব্যালেন্স') }}</span>
+                <strong>{{ selected_metrics.net_balance|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Pending Income', 'Pending আয়') }}</span>
+                <strong>{{ selected_metrics.pending_income|money }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Pending Expense', 'Pending খরচ') }}</span>
+                <strong>{{ selected_metrics.pending_expense|money }}</strong>
+            </article>
+        </div>
+        <p class="muted-text">{{ txt('Formula: Net Balance = Approved Income - Approved Expense', 'ফর্মুলা: Net Balance = Approved Income - Approved Expense') }}</p>
+    </article>
+</section>
+
+<section class="split pocket-report-split">
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-ranking-star"></i>{{ txt('Top Income Categories', 'Top আয় ক্যাটাগরি') }}</h3>
+        <div class="reports2-list-box">
+            {% for row in top_income_categories %}
+            <div>
+                <strong>{{ category_label('income', row.category) }}</strong>
+                <span>{{ row.total_amount|money }}</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No data.', 'ডাটা নেই।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel pocket-report-section">
+        <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation"></i>{{ txt('Top Expense Categories', 'Top খরচ ক্যাটাগরি') }}</h3>
+        <div class="reports2-list-box">
+            {% for row in top_expense_categories %}
+            <div>
+                <strong>{{ category_label('expense', row.category) }}</strong>
+                <span>{{ row.total_amount|money }}</span>
+            </div>
+            {% else %}
+            <p>{{ txt('No data.', 'ডাটা নেই।') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="panel pocket-report-section" id="ledgerCard">
+    <h3 class="section-title"><i class="fa-solid fa-list"></i>{{ txt('Transaction Ledger', 'ট্রানজেকশন লেজার') }}</h3>
+    {% if drill_title %}
+    <p class="muted-text">{{ drill_title }}</p>
+    {% endif %}
+    <div class="table-wrap reports2-ledger-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Type', 'টাইপ') }}</th>
+                    <th>{{ txt('Category', 'ক্যাটাগরি') }}</th>
+                    <th>{{ txt('Source', 'উৎস') }}</th>
+                    <th>{{ txt('Payment', 'পেমেন্ট') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Amount', 'পরিমাণ') }}</th>
+                    <th>{{ txt('Note', 'নোট') }}</th>
+                    <th>{{ txt('Action', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in transaction_rows %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>
+                        {% if row.entry_type == 'INCOME' %}
+                        <span class="badge stock">INCOME</span>
+                        {% else %}
+                        <span class="badge due">EXPENSE</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ category_label(row.category_kind, row.category) }}
+                        {% if row.sub_category %}
+                        <small>{{ row.sub_category }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.source_name or '-' }}</td>
+                    <td>{{ row.payment_method or '-' }}</td>
+                    <td>{{ row.approval_status }}</td>
+                    <td class="{% if row.signed_amount < 0 %}text-danger{% else %}text-ok{% endif %}">{{ row.signed_amount|money }}</td>
+                    <td>{{ row.note or '' }}</td>
+                    <td>
+                        {% if row.can_delete %}
+                        <div class="reports2-ledger-actions">
+                            <form method="post" action="{{ row.delete_url }}" onsubmit="return confirm('{{ txt('Delete this wrong entry?', 'এই ভুল এন্ট্রিটি ডিলিট করবেন?') }}');">
+                                <input type="hidden" name="next" value="{{ current_report_path }}">
+                                <button type="submit" class="btn-danger pocket-delete-btn"><i class="fa-solid fa-trash"></i>{{ txt('Delete', 'ডিলিট') }}</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span class="muted-text">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">{{ txt('No transactions found for selected filter.', 'নির্বাচিত ফিল্টারে কোনো ট্রানজেকশন পাওয়া যায়নি।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="reports2-ledger-mobile">
+        {% for row in transaction_rows %}
+        <article class="reports2-ledger-card {{ row.entry_type|lower }}">
+            <header>
+                <div>
+                    <strong>{{ category_label(row.category_kind, row.category) }}</strong>
+                    <small>{{ row.date }}</small>
+                </div>
+                <span class="amount {% if row.signed_amount < 0 %}negative{% else %}positive{% endif %}">{{ row.signed_amount|money }}</span>
+            </header>
+            <div class="reports2-ledger-meta">
+                <span>{% if row.entry_type == 'INCOME' %}{{ txt('Income', 'আয়') }}{% else %}{{ txt('Expense', 'খরচ') }}{% endif %}</span>
+                <span>{{ row.payment_method or '-' }}</span>
+                <span>{{ row.approval_status }}</span>
+            </div>
+            {% if row.source_name %}
+            <p>{{ row.source_name }}</p>
+            {% endif %}
+            {% if row.sub_category %}
+            <small class="sub-note">{{ row.sub_category }}</small>
+            {% endif %}
+            {% if row.note %}
+            <small class="sub-note">{{ row.note }}</small>
+            {% endif %}
+            {% if row.can_delete %}
+            <div class="reports2-ledger-mobile-actions">
+                <form method="post" action="{{ row.delete_url }}" onsubmit="return confirm('{{ txt('Delete this wrong entry?', 'এই ভুল এন্ট্রিটি ডিলিট করবেন?') }}');">
+                    <input type="hidden" name="next" value="{{ current_report_path }}">
+                    <button type="submit" class="btn-danger pocket-delete-btn"><i class="fa-solid fa-trash"></i>{{ txt('Delete Wrong Entry', 'ভুল এন্ট্রি ডিলিট') }}</button>
+                </form>
+            </div>
+            {% endif %}
+        </article>
+        {% else %}
+        <p class="muted-text">{{ txt('No transactions found for selected filter.', 'নির্বাচিত ফিল্টারে কোনো ট্রানজেকশন পাওয়া যায়নি।') }}</p>
+        {% endfor %}
+    </div>
+</section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const incomeRows = {{ income_category_rows|tojson }};
+    const expenseRows = {{ expense_category_rows|tojson }};
+    const trendLabels = {{ trend_labels|tojson }};
+    const trendIncome = {{ trend_income|tojson }};
+    const trendExpense = {{ trend_expense|tojson }};
+    const trendNet = {{ trend_net|tojson }};
+
+    const money = (value) => {
+        const num = Number(value || 0);
+        return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    };
+
+    const escapeHtml = (value) => String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const donutColors = ["#0f8a6f", "#1f7dc9", "#f5a623", "#8b6cd9", "#d64e4e", "#48a999", "#5f6b7a", "#2c9aa7"];
+
+    const renderDonut = (targetId, rows) => {
+        const mount = document.getElementById(targetId);
+        if (!mount) return;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            mount.innerHTML = '<p class="muted-text">No data</p>';
+            return;
+        }
+
+        const items = rows.slice(0, 6).map((row) => ({
+            label: row.category || "Other",
+            value: Math.max(0, Number(row.total_amount || 0)),
+        }));
+        const total = items.reduce((sum, row) => sum + row.value, 0);
+        if (total <= 0) {
+            mount.innerHTML = '<p class="muted-text">No positive contribution</p>';
+            return;
+        }
+
+        let start = 0;
+        const stops = [];
+        const legend = [];
+        items.forEach((item, idx) => {
+            const share = (item.value / total) * 100;
+            const end = start + share;
+            const color = donutColors[idx % donutColors.length];
+            stops.push(`${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+            legend.push(`<li><i style="background:${color}"></i><span>${escapeHtml(item.label)}</span><strong>${share.toFixed(1)}%</strong></li>`);
+            start = end;
+        });
+
+        mount.innerHTML = `
+            <div class="reports2-donut-ring" style="background:conic-gradient(${stops.join(",")});">
+                <span>${money(total)}</span>
+                <small>Total</small>
+            </div>
+            <ul class="reports2-donut-legend">${legend.join("")}</ul>
+        `;
+    };
+
+    const renderTrendLine = () => {
+        const canvas = document.getElementById("pocketTrendChart");
+        if (!canvas || !canvas.getContext) return;
+        const ctx = canvas.getContext("2d");
+        const isPocketDark = document.body.classList.contains("module-theme-pocket_money");
+        const width = canvas.clientWidth || 620;
+        const height = canvas.clientHeight || 220;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const series = [
+            { color: "#1f7dc9", values: trendIncome },
+            { color: "#d45d3a", values: trendExpense },
+            { color: "#177d61", values: trendNet },
+        ];
+
+        if (!Array.isArray(trendLabels) || trendLabels.length === 0) {
+            ctx.clearRect(0, 0, width, height);
+            return;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+        series.forEach((row) => {
+            row.values.forEach((v) => {
+                const n = Number(v || 0);
+                if (n < min) min = n;
+                if (n > max) max = n;
+            });
+        });
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+            min = 0;
+            max = 1;
+        }
+        if (min === max) {
+            min -= 1;
+            max += 1;
+        }
+
+        const pad = { left: 36, right: 10, top: 14, bottom: 24 };
+        const plotW = Math.max(10, width - pad.left - pad.right);
+        const plotH = Math.max(10, height - pad.top - pad.bottom);
+        const x = (i) => pad.left + (i * plotW) / Math.max(1, trendLabels.length - 1);
+        const y = (v) => pad.top + ((max - v) * plotH) / (max - min);
+        const gridColor = isPocketDark ? "#344158" : "#d8e5e1";
+        const labelColor = isPocketDark ? "#9fb0ca" : "#4b6660";
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i += 1) {
+            const py = pad.top + (plotH * i) / 4;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, py);
+            ctx.lineTo(width - pad.right, py);
+            ctx.stroke();
+        }
+
+        series.forEach((row) => {
+            ctx.strokeStyle = row.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            row.values.forEach((raw, idx) => {
+                const value = Number(raw || 0);
+                const px = x(idx);
+                const py = y(value);
+                if (idx === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        });
+
+        ctx.fillStyle = labelColor;
+        ctx.font = "11px Manrope, sans-serif";
+        ctx.fillText(trendLabels[0], pad.left, height - 8);
+        ctx.fillText(trendLabels[trendLabels.length - 1], Math.max(pad.left, width - 86), height - 8);
+    };
+
+    renderDonut("incomeDonut", incomeRows);
+    renderDonut("expenseDonut", expenseRows);
+    renderTrendLine();
+    window.addEventListener("resize", renderTrendLine, { passive: true });
+})();
+</script>
+{% endblock %}

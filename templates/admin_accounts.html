@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="{{ ui_lang|default('bn') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Billing Panel | Soft X</title>
+    {% if offline_mode %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/offline-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome-fallback.css') }}">
+    {% else %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="admin-shell">
+        <section class="panel hero-panel">
+            <div>
+                <h3 class="section-title"><i class="fa-solid fa-users-gear"></i>{{ txt('Soft X Super Admin Control', 'Soft X সুপার অ্যাডমিন কন্ট্রোল') }}</h3>
+                <p class="muted-text">{{ txt('Accounts, subscription billing, monthly and yearly collection in one panel.', 'এক প্যানেলে account, subscription billing, মাসিক ও বাৎসরিক collection।') }}</p>
+                <p class="muted-text">{{ txt('Shop Login URL', 'Shop Login URL') }}: <code>{{ request.url_root }}login</code></p>
+            </div>
+            <div class="toolbar">
+                <span class="tenant-pill"><i class="fa-solid fa-user-shield"></i>{{ superadmin_user }}</span>
+                <a class="top-action-link" href="{{ url_for('admin_audit') }}"><i class="fa-solid fa-shield-halved"></i>{{ txt('Audit Logs', 'অডিট লগ') }}</a>
+                <form method="post" action="{{ url_for('admin_run_automation') }}" class="inline-form">
+                    <button type="submit" class="btn-secondary"><i class="fa-solid fa-robot"></i>{{ txt('Run Automation', 'অটোমেশন রান') }}</button>
+                </form>
+                <a class="top-action-link {% if ui_lang == 'bn' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.path) }}"><i class="fa-solid fa-language"></i>বাংলা</a>
+                <a class="top-action-link {% if ui_lang == 'en' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.path) }}"><i class="fa-solid fa-language"></i>English</a>
+                <a class="top-action-link" href="{{ url_for('admin_logout') }}"><i class="fa-solid fa-right-from-bracket"></i>Logout</a>
+            </div>
+        </section>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="alerts">
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <section class="metric-grid">
+            <article class="metric-card">
+                <span><i class="fa-solid fa-building"></i>Total Accounts</span>
+                <h2>{{ metrics.total_accounts }}</h2>
+                <small>Active: {{ metrics.active_accounts }} | Inactive: {{ metrics.inactive_accounts }}</small>
+            </article>
+            <article class="metric-card">
+                <span><i class="fa-solid fa-money-bill-wave"></i>Monthly Target</span>
+                <h2>{{ metrics.monthly_target|money }}</h2>
+                <small>Current month gap: {{ metrics.monthly_gap|money }}</small>
+            </article>
+            <article class="metric-card">
+                <span><i class="fa-solid fa-sack-dollar"></i>Monthly Collection</span>
+                <h2>{{ metrics.monthly_collection|money }}</h2>
+                <small>Transactions: {{ metrics.monthly_transactions }} | Payers: {{ metrics.monthly_payers }}</small>
+            </article>
+            <article class="metric-card">
+                <span><i class="fa-solid fa-calendar-check"></i>Yearly Collection</span>
+                <h2>{{ metrics.yearly_collection|money }}</h2>
+                <small>Transactions: {{ metrics.yearly_transactions }} | Payers: {{ metrics.yearly_payers }}</small>
+            </article>
+            <article class="metric-card">
+                <span><i class="fa-solid fa-infinity"></i>Lifetime Collection</span>
+                <h2>{{ metrics.lifetime_collection|money }}</h2>
+                <small>সব সময়ের মোট bill collection</small>
+            </article>
+            <article class="metric-card">
+                <span><i class="fa-solid fa-circle-exclamation"></i>Overdue Summary</span>
+                <h2>{{ metrics.overdue_accounts }}</h2>
+                <small>Due Soon: {{ metrics.due_soon_accounts }} | Est. Due: {{ metrics.overdue_estimated|money }}</small>
+            </article>
+        </section>
+
+        <section class="split">
+            <article class="panel">
+                <h3 class="section-title"><i class="fa-solid fa-robot"></i>{{ txt('Subscription Automation', 'সাবস্ক্রিপশন অটোমেশন') }}</h3>
+                <div class="metric-grid">
+                    <article class="metric-card">
+                        <span><i class="fa-solid fa-list-check"></i>{{ txt('Accounts Checked', 'চেক করা একাউন্ট') }}</span>
+                        <h2>{{ automation_summary.accounts_checked }}</h2>
+                    </article>
+                    <article class="metric-card">
+                        <span><i class="fa-solid fa-bell"></i>{{ txt('Reminders Created', 'নতুন রিমাইন্ডার') }}</span>
+                        <h2>{{ automation_summary.reminders_created }}</h2>
+                    </article>
+                    <article class="metric-card">
+                        <span><i class="fa-solid fa-paper-plane"></i>{{ txt('Webhook Sent', 'ওয়েবহুক সেন্ড') }}</span>
+                        <h2>{{ automation_summary.notifications_sent }}</h2>
+                    </article>
+                    <article class="metric-card">
+                        <span><i class="fa-solid fa-circle-exclamation"></i>{{ txt('Webhook Failed', 'ওয়েবহুক ফেইল') }}</span>
+                        <h2>{{ automation_summary.notifications_failed }}</h2>
+                    </article>
+                </div>
+            </article>
+            <article class="panel">
+                <h3 class="section-title"><i class="fa-solid fa-link"></i>{{ txt('Gateway Webhook Setup', 'গেটওয়ে ওয়েবহুক সেটআপ') }}</h3>
+                <p class="muted-text">{{ txt('Use this endpoint from bKash/Nagad/SSLCommerz server callback.', 'bKash/Nagad/SSLCommerz callback থেকে এই endpoint call করুন।') }}</p>
+                <p><strong>POST URL:</strong> <code>{{ billing_webhook_url }}</code></p>
+                <p><strong>Secret Config:</strong>
+                    {% if billing_webhook_secret_set %}
+                        <span class="badge paid">SET</span>
+                    {% else %}
+                        <span class="badge due">NOT SET</span>
+                    {% endif %}
+                </p>
+                <p><strong>Notify Webhook:</strong> <code>{{ notify_webhook_url or 'NOT_CONFIGURED' }}</code></p>
+                <p class="muted-text">JSON: <code>{"secret":"***","shop_username":"demo","months":1,"amount":500,"tx_ref":"INV001","gateway":"BKASH"}</code></p>
+            </article>
+        </section>
+
+        <section class="split">
+            <article class="panel">
+                <div class="panel-head">
+                    <h3 class="section-title"><i class="fa-solid fa-ranking-star"></i>Who Paid Bills ({{ period_label }})</h3>
+                    <form method="get" class="toolbar admin-period-toolbar">
+                        <select name="period">
+                            <option value="MONTH" {% if period == 'MONTH' %}selected{% endif %}>This Month</option>
+                            <option value="YEAR" {% if period == 'YEAR' %}selected{% endif %}>This Year</option>
+                            <option value="LIFETIME" {% if period == 'LIFETIME' %}selected{% endif %}>Lifetime</option>
+                        </select>
+                        <button type="submit"><i class="fa-solid fa-filter"></i>Load</button>
+                    </form>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Shop</th>
+                                <th>Username</th>
+                                <th>Payments</th>
+                                <th>Total Paid</th>
+                                <th>Last Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in payers %}
+                            <tr>
+                                <td>{{ p.shop_name }}</td>
+                                <td>{{ p.username }}</td>
+                                <td>{{ p.payment_count }}</td>
+                                <td>{{ p.total_amount|money }}</td>
+                                <td>{{ p.last_paid_on or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5">এই period এ কোনো collection নেই</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel">
+                <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation"></i>Due / Expired Accounts</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Shop</th>
+                                <th>Fee</th>
+                                <th>Paid Until</th>
+                                <th>Billing Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in due_accounts %}
+                            <tr>
+                                <td>{{ d.shop_name }}</td>
+                                <td>{{ d.monthly_fee|money }}</td>
+                                <td>{{ d.paid_until or '-' }}</td>
+                                <td>
+                                    {% if d.billing_status == 'EXPIRED' %}
+                                        <span class="badge due">EXPIRED</span>
+                                    {% else %}
+                                        <span class="badge sold">DUE SOON{% if d.days_left is not none %} ({{ d.days_left }}d){% endif %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4">কোনো due account নেই</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <h3 class="section-title"><i class="fa-solid fa-file-invoice-dollar"></i>Recent Bill Collections</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Paid On</th>
+                            <th>Shop</th>
+                            <th>Amount</th>
+                            <th>Months</th>
+                            <th>Coverage</th>
+                            <th>Source</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in recent_collections %}
+                        <tr>
+                            <td>{{ b.paid_on }}</td>
+                            <td>{{ b.shop_name }}<small>{{ b.username }}</small></td>
+                            <td>{{ b.amount|money }}</td>
+                            <td>{{ b.period_months }}</td>
+                            <td>{{ b.period_start }} to {{ b.period_end }}</td>
+                            <td>{{ b.source or 'MANUAL' }}{% if b.gateway %}<small>{{ b.gateway }}</small>{% endif %}{% if b.tx_ref %}<small>{{ b.tx_ref }}</small>{% endif %}</td>
+                            <td>{{ b.note or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7">এখনও কোনো bill collection হয়নি</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="split">
+            <article class="panel">
+                <h3 class="section-title"><i class="fa-solid fa-bell"></i>{{ txt('Reminder History', 'রিমাইন্ডার হিস্টোরি') }}</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Shop</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in reminders %}
+                            <tr>
+                                <td>{{ row.reminder_date }}</td>
+                                <td>{{ row.shop_name }}<small>{{ row.username }}</small></td>
+                                <td>{{ row.reminder_type }}</td>
+                                <td>
+                                    {% if row.status == 'SENT' %}
+                                        <span class="badge paid">SENT</span>
+                                    {% elif row.status == 'FAILED' %}
+                                        <span class="badge due">FAILED</span>
+                                    {% else %}
+                                        <span class="badge sold">{{ row.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4">{{ txt('No reminders yet.', 'এখনও কোনো রিমাইন্ডার নেই।') }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+            <article class="panel">
+                <h3 class="section-title"><i class="fa-solid fa-user-shield"></i>{{ txt('Recent Security Logs', 'সাম্প্রতিক সিকিউরিটি লগ') }}</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Action</th>
+                                <th>Actor</th>
+                                <th>Shop</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_audit %}
+                            <tr>
+                                <td>{{ log.created_at }}</td>
+                                <td>{{ log.action }}</td>
+                                <td>{{ log.actor_type }}<small>{{ log.actor_username or '-' }}</small></td>
+                                <td>{{ log.shop_name or '-' }}</td>
+                                <td>{{ log.ip_address or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5">{{ txt('No audit logs yet.', 'এখনও কোনো অডিট লগ নেই।') }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <h3 class="section-title"><i class="fa-solid fa-plus"></i>Create New Shop Account</h3>
+            <p class="muted-text">এই account create হলে tenant panel-এ default user তৈরি হবে: <code>admin</code> (password = account password)।</p>
+            <p class="muted-text">Setup সময় language + business module select করুন (mobile wholesale, electronics, grocery, clothing, pocket money)।</p>
+            <form method="post" class="form-grid">
+                <label>
+                    Shop Name *
+                    <input type="text" name="shop_name" required placeholder="Rahim Telecom">
+                </label>
+                <label>
+                    Owner Name
+                    <input type="text" name="owner_name" placeholder="Owner name">
+                </label>
+                <label>
+                    Phone
+                    <input type="text" name="phone" placeholder="01XXXXXXXXX">
+                </label>
+                <label>
+                    Username *
+                    <input type="text" name="username" required placeholder="rahim_telecom">
+                </label>
+                <label>
+                    Password *
+                    <input type="password" name="password" minlength="6" required placeholder="At least 6 chars">
+                </label>
+                <label>
+                    UI Language
+                    <select name="ui_language">
+                        <option value="bn">Bangla</option>
+                        <option value="en">English</option>
+                    </select>
+                </label>
+                <label>
+                    Primary Business Module
+                    <select name="primary_business" required>
+                        {% for module in business_modules %}
+                        <option value="{{ module.key }}">
+                            {{ module.label_en }} / {{ module.label_bn }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="span-2 module-group">
+                    <span class="field-label">Enable Modules (Multi-Business)</span>
+                    <div class="module-checkboxes">
+                        {% for module in business_modules %}
+                        <label class="inline-check module-check">
+                            <input
+                                type="checkbox"
+                                name="enabled_modules"
+                                value="{{ module.key }}"
+                                {% if module.key in ['MOBILE_WHOLESALE', 'ELECTRONICS'] %}checked{% endif %}
+                            >
+                            {{ module.label_en }} / {{ module.label_bn }}
+                            <small>{{ txt('Track by', 'Track by') }}: {{ module.tracking_mode }}</small>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <label>
+                    Monthly Fee (BDT)
+                    <input type="number" name="monthly_fee" step="0.01" min="0" value="0">
+                    <small>{{ txt('Pocket Money primary module হলে empty fee auto 99 BDT set হবে।', 'Pocket Money primary module হলে empty fee auto 99 BDT set হবে।') }}</small>
+                </label>
+                <label>
+                    Initial Billing Months
+                    <input type="number" name="initial_months" min="1" max="24" value="1">
+                </label>
+                <label class="span-2">
+                    Billing Note
+                    <input type="text" name="billing_note" placeholder="Package/contract note">
+                </label>
+                <label class="inline-check span-2">
+                    <input type="checkbox" name="seed_from_main" value="1">
+                    Existing main data copy করে account create
+                </label>
+                <div class="form-actions span-2">
+                    <button type="submit"><i class="fa-solid fa-user-plus"></i>Create Account</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h3 class="section-title"><i class="fa-solid fa-table-list"></i>All Shop Accounts</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Shop</th>
+                            <th>Owner/Phone</th>
+                            <th>Business</th>
+                            <th>Billing</th>
+                            <th>Service</th>
+                            <th>Created</th>
+                            <th>Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in accounts %}
+                        <tr>
+                            <td>{{ row.id }}</td>
+                            <td>
+                                {{ row.shop_name }}
+                                <small>{{ row.username }}</small>
+                            </td>
+                            <td>
+                                {{ row.owner_name or '-' }}
+                                <small>{{ row.phone or '-' }}</small>
+                            </td>
+                            <td>
+                                <small>Primary: {{ row.primary_business_label_en }} / {{ row.primary_business_label_bn }}</small>
+                                <small>Modules: {{ row.enabled_modules_label_en }}</small>
+                                <small>UI: {{ (row.ui_language or 'bn')|upper }}</small>
+                            </td>
+                            <td>
+                                <small>Fee: {{ row.monthly_fee|money }}</small>
+                                <small>Paid Till: {{ row.paid_until or '-' }}</small>
+                                <small>Total Collected: {{ row.total_paid|money }}</small>
+                                <small>Payments: {{ row.payment_count }}</small>
+                                <small>Plan: {{ row.plan_code or 'GROWTH' }}</small>
+                                {% if row.billing_status == 'ACTIVE' %}
+                                    <span class="badge paid">BILL OK{% if row.days_left is not none %} ({{ row.days_left }}d){% endif %}</span>
+                                {% elif row.billing_status == 'DUE_SOON' %}
+                                    <span class="badge sold">DUE SOON{% if row.days_left is not none %} ({{ row.days_left }}d){% endif %}</span>
+                                {% elif row.billing_status == 'EXPIRED' %}
+                                    <span class="badge due">EXPIRED</span>
+                                {% else %}
+                                    <span class="badge stock">NO LIMIT</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.is_active == 1 %}
+                                    <span class="badge paid">ACTIVE</span>
+                                {% else %}
+                                    <span class="badge due">INACTIVE</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.created_at }}</td>
+                            <td>
+                                <div class="admin-actions">
+                                    <form method="post" action="{{ url_for('admin_toggle_account', account_id=row.id) }}">
+                                        <input type="hidden" name="action" value="{% if row.is_active == 1 %}deactivate{% else %}activate{% endif %}">
+                                        <button type="submit" class="btn-secondary">
+                                            {% if row.is_active == 1 %}
+                                                <i class="fa-solid fa-ban"></i>Deactivate
+                                            {% else %}
+                                                <i class="fa-solid fa-check"></i>Activate
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('admin_reset_account_password', account_id=row.id) }}">
+                                        <input type="password" name="new_password" minlength="6" required placeholder="New password">
+                                        <button type="submit"><i class="fa-solid fa-key"></i>Reset Pass</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('admin_collect_bill', account_id=row.id) }}">
+                                        <input type="number" name="months" min="1" max="24" value="1" required>
+                                        <input type="number" name="amount" min="0" step="0.01" placeholder="Amount">
+                                        <input type="text" name="note" placeholder="Bill note">
+                                        <button type="submit"><i class="fa-solid fa-money-check-dollar"></i>Collect</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('admin_update_tenant_plan', account_id=row.id) }}">
+                                        <select name="plan_code">
+                                            {% for key in plan_presets.keys() %}
+                                            <option value="{{ key }}" {% if (row.plan_code or 'GROWTH') == key %}selected{% endif %}>{{ key }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <input type="number" name="max_branches" value="{{ row.max_branches or -1 }}" placeholder="Branches">
+                                        <input type="number" name="max_users" value="{{ row.max_users or -1 }}" placeholder="Users">
+                                        <input type="number" name="max_products" value="{{ row.max_products or -1 }}" placeholder="Products">
+                                        <input type="number" name="max_monthly_orders" value="{{ row.max_monthly_orders or -1 }}" placeholder="Orders">
+                                        <button type="submit" class="btn-secondary"><i class="fa-solid fa-layer-group"></i>Plan</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('admin_update_tenant_modules', account_id=row.id) }}">
+                                        <select name="primary_business">
+                                            {% for module in business_modules %}
+                                            <option value="{{ module.key }}" {% if row.primary_business == module.key %}selected{% endif %}>{{ module.label_en }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <input type="text" name="enabled_modules" value="{{ row.enabled_modules or row.primary_business }}" placeholder="MOBILE_WHOLESALE,POCKET_MONEY">
+                                        <input type="text" name="module_overrides_json" value="{{ row.module_overrides_json or '' }}" placeholder='{"pocket_money":{"monthly_fee":99}}'>
+                                        <button type="submit" class="btn-secondary"><i class="fa-solid fa-sliders"></i>Modules</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8">কোনো shop account নেই</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script>
+    (function () {
+        const primarySelect = document.querySelector("select[name='primary_business']");
+        const moduleChecks = Array.from(document.querySelectorAll("input[name='enabled_modules']"));
+        if (!primarySelect || !moduleChecks.length) return;
+
+        function ensurePrimaryChecked() {
+            const current = primarySelect.value;
+            const match = moduleChecks.find((item) => item.value === current);
+            if (match) match.checked = true;
+        }
+
+        primarySelect.addEventListener("change", ensurePrimaryChecked);
+        ensurePrimaryChecked();
+    })();
+    </script>
+</body>
+</html>

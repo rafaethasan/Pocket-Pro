@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Due List', 'বাকি লিস্ট') }} | Soft X{% endblock %}
+{% block content %}
+<div class="due-native-shell">
+    <section class="due-native-topbar panel">
+        <div class="due-native-topcopy">
+            <h2>{{ txt('Due List', 'বাকি লিস্ট') }}</h2>
+            <p>{{ txt('Track outstanding due and collected cash in one clean mobile screen.', 'বাকি ও আদায় করা টাকা এক স্ক্রিনে পরিষ্কারভাবে দেখুন।') }}</p>
+        </div>
+        <form method="get" class="due-native-searchbar">
+            <input type="hidden" name="dview" value="{{ due_view }}">
+            <label class="due-native-searchinput">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="q" value="{{ search_query }}" placeholder="{{ txt('Search party or phone', 'পার্টি বা ফোন খুঁজুন') }}">
+            </label>
+            {% if search_query %}
+            <a class="due-native-reset" href="{{ url_for('due_list', dview=due_view) }}">
+                <i class="fa-solid fa-rotate-left"></i>
+            </a>
+            {% endif %}
+        </form>
+    </section>
+
+    <section class="due-native-summary-grid">
+        <article class="due-native-summary-card tone-due">
+            <span>{{ total_due|money }}</span>
+            <strong>{{ txt('Total Due', 'মোট বাকি') }}</strong>
+            <small>{{ due_party_count }} {{ txt('active parties', 'টি active party') }}</small>
+        </article>
+        <article class="due-native-summary-card tone-collected">
+            <span>{{ total_collected|money }}</span>
+            <strong>{{ txt('Total Due Collected', 'মোট আদায়') }}</strong>
+            <small>{{ collected_party_count }} {{ txt('collection parties', 'টি collection party') }}</small>
+        </article>
+    </section>
+
+    <section class="due-native-action-strip">
+        <a href="{{ url_for('due_list', dview='due', q=search_query) }}" class="{% if due_view == 'due' %}active{% endif %}">
+            <i class="fa-solid fa-bolt"></i>
+            <span>{{ txt('Quick Due Collect', 'কুইক ডিউ কালেক্ট') }}</span>
+        </a>
+        <a href="{{ url_for('due_list', dview='collected', q=search_query) }}" class="{% if due_view == 'collected' %}active{% endif %}">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>{{ txt('Collection History', 'কালেকশন হিস্ট্রি') }}</span>
+        </a>
+    </section>
+
+    <nav class="due-native-tabs">
+        <a href="{{ url_for('due_list', dview='due', q=search_query) }}" class="{% if due_view == 'due' %}active{% endif %}">
+            {{ txt('Due List', 'বাকি লিস্ট') }}
+        </a>
+        <a href="{{ url_for('due_list', dview='collected', q=search_query) }}" class="{% if due_view == 'collected' %}active{% endif %}">
+            {{ txt('Due Collected', 'Due Collected') }}
+        </a>
+    </nav>
+
+    <section class="due-native-list-card">
+        {% if due_view == 'due' %}
+            {% if due_rows %}
+                {% for item in due_rows %}
+                <div class="due-native-row due-native-row-collect">
+                    <a class="due-native-row-main" href="{{ item.detail_url }}">
+                        <span class="due-native-avatar due-tone-{{ item.tone }}">{{ item.initials }}</span>
+                        <span class="due-native-person">
+                            <strong>{{ item.party_name }}</strong>
+                            <small class="tone-{{ item.tone }}">{{ txt(item.party_label_en, item.party_label_bn) }}</small>
+                        </span>
+                        <span class="due-native-amount">
+                            <strong>{{ item.due_amount|money }}</strong>
+                            <small>{{ txt('Due', 'বাকি') }}</small>
+                        </span>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                    <a class="due-native-collect-action" href="{{ item.collect_url }}">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                        <span>{{ txt('Collect', 'Collect') }}</span>
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">{{ txt('No due party found.', 'কোনো due party পাওয়া যায়নি।') }}</p>
+            {% endif %}
+        {% else %}
+            {% if collected_rows %}
+                {% for item in collected_rows %}
+                <a class="due-native-row" href="{{ item.detail_url }}">
+                    <span class="due-native-avatar due-tone-{{ item.tone }}">{{ item.initials }}</span>
+                    <span class="due-native-person">
+                        <strong>{{ item.party_name }}</strong>
+                        <small class="tone-{{ item.tone }}">{{ txt(item.party_label_en, item.party_label_bn) }}</small>
+                    </span>
+                    <span class="due-native-amount due-native-amount-collected">
+                        <strong>{{ item.collected_amount|money }}</strong>
+                        <small>{{ txt('Collected', 'আদায়') }}</small>
+                    </span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">{{ txt('No collection history found.', 'কোনো collection history পাওয়া যায়নি।') }}</p>
+            {% endif %}
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

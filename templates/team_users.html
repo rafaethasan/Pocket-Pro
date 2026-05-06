@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Team Users | Soft X{% endblock %}
+{% block content %}
+<section class="panel hero-panel">
+    <div>
+        <h3 class="section-title"><i class="fa-solid fa-user-gear"></i>Team Access Control</h3>
+        <p class="muted-text">Only দুইটি role: <strong>ADMIN</strong> এবং <strong>USER</strong>।</p>
+    </div>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-user-plus"></i>Create Team User</h3>
+    <form method="post" class="form-grid">
+        <label>
+            Full Name
+            <input type="text" name="full_name" placeholder="Rakib Hasan">
+        </label>
+        <label>
+            User ID *
+            <input type="text" name="username" required placeholder="user1">
+        </label>
+        <label>
+            Role *
+            <select name="role">
+                <option value="ADMIN">ADMIN</option>
+                <option value="USER">USER</option>
+            </select>
+        </label>
+        <label>
+            Password *
+            <input type="password" name="password" minlength="6" required placeholder="At least 6 chars">
+        </label>
+        <div class="form-actions">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>Create User</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-users"></i>Team User List</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Controls</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>
+                        {{ u.username }}
+                        <small>{{ u.full_name or '-' }}</small>
+                    </td>
+                    <td>
+                        {% if u.role == 'ADMIN' %}
+                            <span class="badge paid">ADMIN</span>
+                        {% else %}
+                            <span class="badge stock">USER</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active == 1 %}
+                            <span class="badge paid">ACTIVE</span>
+                        {% else %}
+                            <span class="badge due">INACTIVE</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.created_at }}</td>
+                    <td>
+                        <div class="admin-actions">
+                            <form method="post" action="{{ url_for('team_toggle_user', user_id=u.id) }}">
+                                <input type="hidden" name="action" value="{% if u.is_active == 1 %}deactivate{% else %}activate{% endif %}">
+                                <button type="submit" class="btn-secondary">
+                                    {% if u.is_active == 1 %}
+                                        <i class="fa-solid fa-ban"></i>Deactivate
+                                    {% else %}
+                                        <i class="fa-solid fa-check"></i>Activate
+                                    {% endif %}
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('team_change_role', user_id=u.id) }}">
+                                <select name="role">
+                                    <option value="ADMIN" {% if u.role == 'ADMIN' %}selected{% endif %}>ADMIN</option>
+                                    <option value="USER" {% if u.role == 'USER' %}selected{% endif %}>USER</option>
+                                </select>
+                                <button type="submit"><i class="fa-solid fa-user-pen"></i>Set Role</button>
+                            </form>
+                            <form method="post" action="{{ url_for('team_reset_password', user_id=u.id) }}">
+                                <input type="password" name="new_password" minlength="6" required placeholder="New password">
+                                <button type="submit"><i class="fa-solid fa-key"></i>Reset Pass</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">কোনো team user নেই</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

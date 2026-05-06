@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="{{ ui_lang|default('bn') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f8a6f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Soft X">
+    <title>Super Admin Login | Soft X</title>
+    <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    {% if offline_mode %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/offline-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome-fallback.css') }}">
+    {% else %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260329login1') }}">
+    <style>
+    .auth-card.auth-card-pro {
+        width: min(540px, 96vw);
+        border-radius: 22px;
+        border: 1px solid #d2e4df;
+        box-shadow: 0 24px 48px rgba(10, 42, 33, 0.18);
+    }
+
+    .auth-title {
+        font-size: clamp(1.3rem, 1.9vw, 1.65rem);
+        line-height: 1.15;
+    }
+
+    .auth-subtitle {
+        font-size: 0.92rem;
+    }
+
+    .auth-role-switch-grid,
+    .auth-link-box-grid {
+        gap: 0.75rem;
+    }
+
+    a.auth-role-tile,
+    a.auth-link-box {
+        border-radius: 16px;
+        border-width: 1px;
+        box-shadow: 0 10px 24px rgba(16, 42, 67, 0.14);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    a.auth-role-tile:hover,
+    a.auth-link-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 30px rgba(15, 45, 72, 0.2);
+    }
+
+    .auth-role-tile .role-tile-icon,
+    .auth-link-box .role-tile-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+    }
+
+    .auth-role-tile small {
+        display: block;
+        font-size: 0.72rem;
+        line-height: 1.2;
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .auth-role-tile strong,
+    .auth-link-box strong {
+        font-size: 0.88rem;
+        letter-spacing: 0.2px;
+    }
+
+    .auth-link-box.auth-link-login {
+        background: linear-gradient(135deg, #eaf4ff, #dcecff);
+        border-color: #b9d1ef;
+    }
+
+    .auth-link-box.auth-link-register {
+        background: linear-gradient(135deg, #e9f9f2, #dcf3e9);
+        border-color: #bdddcc;
+    }
+
+    @media (max-width: 860px) {
+        .auth-card.auth-card-pro {
+            border-radius: 18px;
+            padding: 1rem;
+        }
+
+        .auth-role-switch-grid,
+        .auth-link-box-grid {
+            gap: 0.56rem;
+        }
+
+        a.auth-role-tile,
+        a.auth-link-box {
+            min-height: 104px;
+            border-radius: 13px;
+            box-shadow: 0 8px 18px rgba(14, 39, 63, 0.12);
+        }
+
+        .auth-role-tile .role-tile-icon,
+        .auth-link-box .role-tile-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+        }
+
+        .auth-role-tile strong,
+        .auth-link-box strong {
+            font-size: 0.78rem;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="auth-shell">
+        <section class="auth-card auth-card-pro">
+            <div class="auth-language">
+                <a class="top-action-link {% if ui_lang == 'bn' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.path) }}"><i class="fa-solid fa-language"></i>বাংলা</a>
+                <a class="top-action-link {% if ui_lang == 'en' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.path) }}"><i class="fa-solid fa-language"></i>English</a>
+            </div>
+            <h2 class="auth-title"><i class="fa-solid fa-user-shield"></i> {{ txt('Super Admin Login', 'সুপার অ্যাডমিন লগইন') }}</h2>
+            <p class="auth-subtitle">{{ txt('Login to create and manage shop accounts.', 'Shop account তৈরি ও manage করতে login করুন।') }}</p>
+            <div class="auth-role-switch-grid compact">
+                <a class="auth-role-tile role-super active" href="{{ url_for('superadmin_login') }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                    <strong>{{ txt('Super Admin', 'সুপার অ্যাডমিন') }}</strong>
+                    <small>{{ txt('Software owner control panel', 'Software owner control panel') }}</small>
+                </a>
+                <a class="auth-role-tile role-user" href="{{ url_for('login_selector') }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-store"></i></span>
+                    <strong>{{ txt('Shop Login', 'শপ লগইন') }}</strong>
+                    <small>{{ txt('Admin/User login for shop team', 'Shop team এর Admin/User login') }}</small>
+                </a>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <section class="alerts">
+                        {% for category, message in messages %}
+                            <div class="alert {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </section>
+                {% endif %}
+            {% endwith %}
+
+            <form method="post" class="auth-form">
+                <label class="form-stack">
+                    {{ txt('Super Admin Username', 'সুপার অ্যাডমিন ইউজারনেম') }}
+                    <input type="text" name="username" required autocomplete="username" value="{{ superadmin_user }}">
+                </label>
+                <label class="form-stack">
+                    {{ txt('Super Admin Password', 'সুপার অ্যাডমিন পাসওয়ার্ড') }}
+                    <input type="password" name="password" required autocomplete="current-password">
+                </label>
+                {% if otp_required %}
+                <label class="form-stack">
+                    {{ txt('OTP Code', 'ওটিপি কোড') }}
+                    <input type="text" name="otp" required placeholder="6 digit code">
+                </label>
+                {% endif %}
+                <button type="submit"><i class="fa-solid fa-key"></i>{{ txt('Login Admin Panel', 'অ্যাডমিন প্যানেল লগইন') }}</button>
+            </form>
+
+            <div class="auth-link-box-grid">
+                <a class="auth-link-box auth-link-login" href="{{ url_for('login_selector') }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-right-to-bracket"></i></span>
+                    <strong>{{ txt('Shop Login', 'শপ লগইন') }}</strong>
+                </a>
+                <a class="auth-link-box auth-link-register" href="{{ url_for('superadmin_login') }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-user-plus"></i></span>
+                    <strong>{{ txt('Registration', 'রেজিস্ট্রেশন') }}</strong>
+                </a>
+            </div>
+            <div class="helper-links">
+                <span class="muted-text">{{ txt('Default admin user', 'ডিফল্ট অ্যাডমিন ইউজার') }}: <code>{{ superadmin_user }}</code></span>
+            </div>
+        </section>
+    </div>
+    <script src="{{ url_for('static', filename='pwa-install.js') }}"></script>
+</body>
+</html>

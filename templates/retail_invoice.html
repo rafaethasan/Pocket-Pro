@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Retail Invoice', 'রিটেইল ইনভয়েস') }} | {{ invoice.invoice_no }}{% endblock %}
+{% block content %}
+<section class="panel invoice-shell">
+    <div class="invoice-top">
+        <div>
+            <h2 class="invoice-title"><i class="fa-solid fa-file-invoice"></i>{{ txt('Retail Invoice', 'রিটেইল ইনভয়েস') }}</h2>
+            <p class="muted-text">{{ txt('Professional smart invoice with IMEI tracking and QR download link.', 'IMEI tracking এবং QR download link সহ professional smart invoice।') }}</p>
+        </div>
+        <div class="toolbar no-print">
+            <a class="link-btn" href="{{ url_for('retail_sales') }}"><i class="fa-solid fa-arrow-left"></i>{{ txt('Back', 'পিছনে') }}</a>
+            <a class="link-btn" href="{{ url_for('retail_invoice_download', invoice_no=invoice.invoice_no) }}"><i class="fa-solid fa-download"></i>{{ txt('Download HTML', 'HTML ডাউনলোড') }}</a>
+            <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print', 'প্রিন্ট') }}</button>
+        </div>
+    </div>
+
+    <div class="invoice-head-grid">
+        <article class="invoice-card">
+            <h4>{{ txt('Invoice Info', 'ইনভয়েস তথ্য') }}</h4>
+            <p><strong>{{ txt('Invoice No', 'ইনভয়েস নং') }}:</strong> {{ invoice.invoice_no }}</p>
+            <p><strong>{{ txt('Date', 'তারিখ') }}:</strong> {{ invoice.sold_at }}</p>
+            <p><strong>{{ txt('Status', 'স্ট্যাটাস') }}:</strong> <span class="badge {% if invoice.payment_status == 'PAID' %}paid{% else %}due{% endif %}">{{ invoice.payment_status }}</span></p>
+        </article>
+        <article class="invoice-card">
+            <h4>{{ txt('Customer', 'কাস্টমার') }}</h4>
+            <p><strong>{{ txt('Name', 'নাম') }}:</strong> {{ invoice.customer_name }}</p>
+            <p><strong>{{ txt('Mobile', 'মোবাইল') }}:</strong> {{ invoice.customer_phone or '-' }}</p>
+            <p><strong>{{ txt('Address', 'ঠিকানা') }}:</strong> {{ invoice.customer_address or '-' }}</p>
+        </article>
+        <article class="invoice-card invoice-qr">
+            <h4>{{ txt('Customer QR', 'কাস্টমার QR') }}</h4>
+            <img src="{{ qr_url }}" alt="Invoice QR">
+            <small>{{ txt('Customer can scan and open this invoice on phone.', 'কাস্টমার QR scan করে মোবাইলে invoice খুলতে পারবে।') }}</small>
+            <a class="link-btn no-print" href="{{ share_url }}" target="_blank"><i class="fa-solid fa-link"></i>{{ txt('Open Shared Invoice', 'শেয়ার লিংক ওপেন') }}</a>
+        </article>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>{{ txt('Product Name', 'প্রোডাক্ট নাম') }}</th>
+                    <th>{{ txt('Storage', 'স্টোরেজ') }}</th>
+                    <th>{{ txt('Colour', 'কালার') }}</th>
+                    <th>IMEI</th>
+                    <th>{{ txt('Price', 'দাম') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.brand }} {{ item.model }}</td>
+                    <td>{{ item.storage or '-' }}</td>
+                    <td>{{ item.color or '-' }}</td>
+                    <td><strong>{{ item.imei }}</strong></td>
+                    <td>{{ item.sold_price|money }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">{{ txt('No item found in this invoice.', 'এই ইনভয়েসে কোনো আইটেম নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="invoice-total-grid">
+        <article class="invoice-total-card">
+            <span>{{ txt('Subtotal', 'সাবটোটাল') }}</span>
+            <h3>{{ invoice.subtotal|money }}</h3>
+        </article>
+        <article class="invoice-total-card">
+            <span>{{ txt('Paid', 'পরিশোধ') }}</span>
+            <h3>{{ invoice.paid_amount|money }}</h3>
+        </article>
+        <article class="invoice-total-card">
+            <span>{{ txt('Due', 'বাকি') }}</span>
+            <h3>{{ invoice.due_amount|money }}</h3>
+        </article>
+    </div>
+
+    {% if invoice.note %}
+    <p class="muted-text"><strong>{{ txt('Note', 'নোট') }}:</strong> {{ invoice.note }}</p>
+    {% endif %}
+</section>
+{% endblock %}

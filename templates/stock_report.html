@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Stock Report', 'স্টক রিপোর্ট') }} | Soft X{% endblock %}
+{% block content %}
+{% set stock_mobile_view = request.args.get('stview', 'details') %}
+{% set stock_report_next = url_for('stock_report', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value, stview=stock_mobile_view) %}
+<div class="stock-native-shell stock-mobile-view-{{ stock_mobile_view }}">
+<section class="panel stock-report-filter-panel no-print stock-mobile-pane stock-pane-filter">
+    <div class="panel-head stock-report-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-boxes-stacked"></i>{{ txt('Stock Report Center', 'স্টক রিপোর্ট সেন্টার') }}</h3>
+            <p class="muted-text">{{ txt('Filter quickly, print instantly, and save PDF for daily closing.', 'দ্রুত filter করুন, সাথে সাথে print করুন, আর PDF save করে daily closing করুন।') }}</p>
+        </div>
+        <div class="toolbar stock-report-head-actions">
+            <a class="link-btn" href="{{ url_for('stock_report_export_csv', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+        </div>
+    </div>
+
+    <form method="get" class="stock-filter-grid" id="stock-filter-form">
+        <input type="hidden" name="stview" value="filter">
+        <label>
+            {{ txt('Search', 'সার্চ') }}
+            <input type="text" name="q" value="{{ q }}" placeholder="{{ txt('IMEI / Brand / Model / Invoice / Shop', 'IMEI / Brand / Model / Invoice / Shop') }}">
+        </label>
+        <label>
+            {{ txt('Status', 'স্ট্যাটাস') }}
+            <select name="status">
+                <option value="IN_STOCK" {% if status_filter == 'IN_STOCK' %}selected{% endif %}>{{ txt('In Stock', 'স্টকে আছে') }}</option>
+                <option value="SOLD" {% if status_filter == 'SOLD' %}selected{% endif %}>{{ txt('Sold', 'বিক্রি') }}</option>
+                <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>{{ txt('All', 'সব') }}</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Brand', 'ব্র্যান্ড') }}
+            <select name="brand">
+                <option value="ALL">{{ txt('All Brand', 'সব ব্র্যান্ড') }}</option>
+                {% for b in brand_options %}
+                <option value="{{ b }}" {% if brand_filter == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            {{ txt('Category', 'ক্যাটাগরি') }}
+            <select name="category">
+                <option value="ALL">{{ txt('All Category', 'সব ক্যাটাগরি') }}</option>
+                {% for c in category_options %}
+                <option value="{{ c }}" {% if category_filter == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            {{ txt('Supplier', 'সাপ্লায়ার') }}
+            <select name="supplier_id">
+                <option value="">{{ txt('All Supplier', 'সব সাপ্লায়ার') }}</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}" {% if supplier_filter == s.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            {{ txt('Sort By', 'সোর্ট') }}
+            <select name="sort">
+                {% for opt in sort_options %}
+                <option value="{{ opt.key }}" {% if sort_key == opt.key %}selected{% endif %}>{{ txt(opt.label_en, opt.label_bn) }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            {{ txt('Rows Limit', 'রো লিমিট') }}
+            <select name="limit">
+                {% for n in limit_options %}
+                <option value="{{ n }}" {% if limit_value == n %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="stock-filter-actions">
+            <button type="submit"><i class="fa-solid fa-filter"></i>{{ txt('Apply', 'ফিল্টার') }}</button>
+            <a class="stock-reset-btn" href="{{ url_for('stock_report') }}"><i class="fa-solid fa-rotate-right"></i>{{ txt('Reset', 'রিসেট') }}</a>
+        </div>
+    </form>
+
+    <p class="muted-text">{{ txt('Active filter', 'চালু ফিল্টার') }}: <strong>{{ active_filter_count }}</strong> | {{ txt('Rows shown', 'দেখানো রো') }}: <strong>{{ rows|length }}</strong></p>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="{{ url_for('stock_report', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value, stview='filter') ~ '#stock-filter-form' }}" class="module-focus-card {% if stock_mobile_view == 'filter' %}is-active{% endif %}">
+        <i class="fa-solid fa-filter"></i>
+        <strong>{{ txt('Filter', 'ফিল্টার') }}</strong>
+        <span>{{ txt('Search stock fast', 'দ্রুত স্টক খুঁজুন') }}</span>
+    </a>
+    <a href="{{ url_for('stock_report', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value, stview='summary') ~ '#stock-summary-overview' }}" class="module-focus-card {% if stock_mobile_view == 'summary' %}is-active{% endif %}">
+        <i class="fa-solid fa-chart-simple"></i>
+        <strong>{{ txt('Summary', 'সারাংশ') }}</strong>
+        <span>{{ txt('Units, cost, due', 'ইউনিট, কস্ট, due') }}</span>
+    </a>
+    <a href="{{ url_for('stock_report', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value, stview='risk') ~ '#stock-risk-watch' }}" class="module-focus-card {% if stock_mobile_view == 'risk' %}is-active{% endif %}">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>{{ txt('Risk Watch', 'রিস্ক ওয়াচ') }}</strong>
+        <span>{{ txt('Aging and margin alerts', 'aging ও margin alert') }}</span>
+    </a>
+    <a href="{{ url_for('stock_report', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value, stview='details') ~ '#stock-detail-lines' }}" class="module-focus-card {% if stock_mobile_view == 'details' %}is-active{% endif %}">
+        <i class="fa-solid fa-table-list"></i>
+        <strong>{{ txt('Details', 'ডিটেইলস') }}</strong>
+        <span>{{ txt('Line by line stock', 'লাইন বাই লাইন স্টক') }}</span>
+    </a>
+</section>
+
+<section class="panel print-only stock-print-head">
+    <h3 class="section-title"><i class="fa-solid fa-print"></i>{{ txt('Soft X Stock Report', 'Soft X স্টক রিপোর্ট') }}</h3>
+    <p class="muted-text">{{ txt('Printed copy for stock verification, godown check and owner review.', 'স্টক যাচাই, গোডাউন চেক ও owner review-এর জন্য প্রিন্ট কপি।') }}</p>
+</section>
+
+<section class="metric-grid stock-summary-grid stock-mobile-pane stock-pane-summary" id="stock-summary-overview">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-list-check"></i>{{ txt('Total Units', 'মোট ইউনিট') }}</span>
+        <h2>{{ summary.total_units|int }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-box-open"></i>{{ txt('In Stock', 'স্টকে আছে') }}</span>
+        <h2>{{ summary.in_stock_units|int }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-cart-arrow-down"></i>{{ txt('Sold Units', 'বিক্রি ইউনিট') }}</span>
+        <h2>{{ summary.sold_units|int }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-layer-group"></i>{{ txt('Model Count', 'মডেল সংখ্যা') }}</span>
+        <h2>{{ summary.model_count|int }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-coins"></i>{{ txt('Stock Cost', 'স্টক কস্ট') }}</span>
+        <h2>{{ summary.in_stock_cost|money }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ txt('Stock Value (W)', 'স্টক ভ্যালু (W)') }}</span>
+        <h2>{{ summary.in_stock_wholesale_value|money }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Due Outstanding', 'মোট বাকি') }}</span>
+        <h2>{{ summary.due_outstanding|money }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-clock"></i>{{ txt('Avg Stock Age', 'গড় স্টক বয়স') }}</span>
+        <h2>{{ summary.avg_stock_age_days|round(1) }} {{ txt('day', 'দিন') }}</h2>
+        <small>{{ txt('Oldest', 'সর্বোচ্চ বয়স') }}: {{ summary.oldest_stock_days|int }} {{ txt('day', 'দিন') }}</small>
+    </article>
+</section>
+
+<section class="panel stock-mobile-pane stock-pane-summary">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-cubes"></i>{{ txt('Model-wise Stock Snapshot', 'মডেলভিত্তিক স্টক স্ন্যাপশট') }}</h3>
+        <span class="badge stock">{{ model_summary|length }} {{ txt('models', 'মডেল') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Brand', 'ব্র্যান্ড') }}</th>
+                    <th>{{ txt('Model', 'মডেল') }}</th>
+                    <th>{{ txt('Variant', 'ভ্যারিয়েন্ট') }}</th>
+                    <th>{{ txt('Color', 'কালার') }}</th>
+                    <th>{{ txt('Units', 'ইউনিট') }}</th>
+                    <th>{{ txt('Cost', 'কস্ট') }}</th>
+                    <th>{{ txt('W. Value', 'W. ভ্যালু') }}</th>
+                    <th>{{ txt('Potential W Profit', 'সম্ভাব্য W প্রফিট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in model_summary %}
+                <tr>
+                    <td>{{ row.brand }}</td>
+                    <td>{{ row.model }}</td>
+                    <td>{{ row.storage or '-' }}</td>
+                    <td>{{ row.color or '-' }}</td>
+                    <td>{{ row.units }}</td>
+                    <td>{{ row.cost|money }}</td>
+                    <td>{{ row.wholesale_value|money }}</td>
+                    <td>{{ (row.wholesale_value - row.cost)|money }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8">{{ txt('No model summary found for this filter.', 'এই ফিল্টারে কোনো মডেল সারাংশ পাওয়া যায়নি।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="split stock-insight-split stock-mobile-pane stock-pane-risk" id="stock-risk-watch">
+    <article class="panel">
+        <div class="panel-head">
+            <h3 class="section-title"><i class="fa-solid fa-hourglass-half"></i>{{ txt('Aging Stock Alert', 'পুরোনো স্টক এলার্ট') }}</h3>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ txt('IMEI', 'IMEI') }}</th>
+                        <th>{{ txt('Product', 'প্রোডাক্ট') }}</th>
+                        <th>{{ txt('Age', 'বয়স') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stale_in_stock_rows %}
+                    <tr>
+                        <td><code>{{ row.imei }}</code></td>
+                        <td>{{ row.brand }} {{ row.model }}{% if row.storage %}<small>{{ row.storage }}</small>{% endif %}</td>
+                        <td>{{ row.age_days }} {{ txt('day', 'দিন') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">{{ txt('No aging-stock issue detected.', 'পুরোনো স্টকের সমস্যা পাওয়া যায়নি।') }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-head">
+            <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation"></i>{{ txt('Due Risk Shops', 'বাকি ঝুঁকির শপ') }}</h3>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ txt('Shop / Customer', 'শপ / কাস্টমার') }}</th>
+                        <th>{{ txt('Due Amount', 'বাকি টাকা') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in due_risk_shops %}
+                    <tr>
+                        <td>{{ row.holder_name }}</td>
+                        <td>{{ row.due_amount|money }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2">{{ txt('No due risk right now.', 'এখন বাকি ঝুঁকি নেই।') }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="stock-sub-block">
+            <h4 class="section-title"><i class="fa-solid fa-percent"></i>{{ txt('Low Margin Sold (below 3%)', 'লো মার্জিন সেল (৩% এর নিচে)') }}</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('IMEI', 'IMEI') }}</th>
+                            <th>{{ txt('Product', 'প্রোডাক্ট') }}</th>
+                            <th>{{ txt('Margin', 'মার্জিন') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in low_margin_sales %}
+                        <tr>
+                            <td><code>{{ row.imei }}</code></td>
+                            <td>{{ row.brand }} {{ row.model }}</td>
+                            <td>{{ row.realized_margin|round(2) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3">{{ txt('No low-margin sold item in this filter.', 'এই ফিল্টারে low-margin sold item নেই।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="panel stock-mobile-pane stock-pane-details" id="stock-detail-lines">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-table-list"></i>{{ txt('Detailed Stock Lines', 'ডিটেইলড স্টক লাইন') }}</h3>
+        <span class="badge stock">{{ rows|length }} {{ txt('rows', 'রো') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table class="stock-detail-table">
+            <thead>
+                <tr>
+                    <th>{{ txt('IMEI', 'IMEI') }}</th>
+                    <th>{{ txt('Product', 'প্রোডাক্ট') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Supplier', 'সাপ্লায়ার') }}</th>
+                    <th>{{ txt('Received / Age', 'রিসিভ / বয়স') }}</th>
+                    <th>{{ txt('Purchase', 'ক্রয়') }}</th>
+                    <th>{{ txt('W Price', 'W দাম') }}</th>
+                    <th>{{ txt('R Price', 'R দাম') }}</th>
+                    <th>{{ txt('Sold Info', 'সেল তথ্য') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th class="no-print">{{ txt('Actions', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td><code>{{ row.imei }}</code></td>
+                    <td>
+                        <button type="button" class="stock-product-action-toggle no-print" data-stock-actions-toggle="stock-actions-{{ row.id }}">
+                            <span>
+                                {{ row.brand }} {{ row.model }}
+                                {% if row.storage %}<small>{{ row.storage }}</small>{% endif %}
+                                {% if row.color %}<small>{{ row.color }}</small>{% endif %}
+                                {% if row.category %}<small>{{ row.category }}</small>{% endif %}
+                                {% if row.warranty_type %}<small>{{ txt('Warranty', 'ওয়ারেন্টি') }}: {{ txt('Official', 'অফিসিয়াল') if row.warranty_type == 'OFFICIAL' else txt('Unofficial', 'আনঅফিসিয়াল') }}</small>{% endif %}
+                            </span>
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="print-only">
+                            {{ row.brand }} {{ row.model }}
+                            {% if row.storage %}<small>{{ row.storage }}</small>{% endif %}
+                            {% if row.color %}<small>{{ row.color }}</small>{% endif %}
+                            {% if row.category %}<small>{{ row.category }}</small>{% endif %}
+                            {% if row.warranty_type %}<small>{{ txt('Warranty', 'ওয়ারেন্টি') }}: {{ txt('Official', 'অফিসিয়াল') if row.warranty_type == 'OFFICIAL' else txt('Unofficial', 'আনঅফিসিয়াল') }}</small>{% endif %}
+                        </div>
+                        <div class="stock-product-actions no-print" id="stock-actions-{{ row.id }}" hidden>
+                            <a class="link-btn" href="{{ url_for('edit_tools', tool='products', q=row.imei, edit_id=row.id) }}#entity-edit-panel">
+                                <i class="fa-solid fa-pen"></i>{{ txt('Edit', 'এডিট') }}
+                            </a>
+                            <a class="link-btn" href="{{ url_for('imei_lookup', imei=row.imei) }}">
+                                <i class="fa-solid fa-clock-rotate-left"></i>{{ txt('History', 'হিস্ট্রি') }}
+                            </a>
+                            {% if row.status == 'IN_STOCK' and row.supplier_id %}
+                            <a class="link-btn" href="{{ url_for('suppliers', supplier_id=row.supplier_id, imei=row.imei) }}#supplier-return-form">
+                                <i class="fa-solid fa-arrow-right-arrow-left"></i>{{ txt('Supplier Return', 'সাপ্লায়ার রিটার্ন') }}
+                            </a>
+                            {% endif %}
+                            {% if row.status == 'SOLD' %}
+                            <button type="button" class="btn-danger" disabled title="{{ txt('Sold item cannot be deleted', 'Sold item ডিলিট করা যাবে না') }}">
+                                <i class="fa-solid fa-trash"></i>{{ txt('Delete', 'ডিলিট') }}
+                            </button>
+                            {% else %}
+                            <a class="btn-danger" href="{{ url_for('product_delete', product_id=row.id, next=stock_report_next) }}">
+                                <i class="fa-solid fa-trash"></i>{{ txt('Delete', 'ডিলিট') }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge {% if row.status == 'IN_STOCK' %}stock{% else %}sold{% endif %}">{{ row.status }}</span>
+                    </td>
+                    <td>{{ row.supplier_name or '-' }}</td>
+                    <td>
+                        {{ row.received_date or '-' }}
+                        <small>{% if row.age_days is not none %}{{ row.age_days }} {{ txt('day', 'দিন') }}{% else %}-{% endif %}</small>
+                    </td>
+                    <td>{{ row.purchase_price|money }}</td>
+                    <td>{{ row.wholesale_price|money }}</td>
+                    <td>{{ row.retail_price|money }}</td>
+                    <td>
+                        {% if row.status == 'SOLD' %}
+                            {{ row.holder_name or '-' }}
+                            <small>{{ txt('Invoice', 'ইনভয়েস') }}: {{ row.invoice_no or '-' }}</small>
+                            <small>{{ txt('Sold', 'সেল') }}: {{ row.sold_price|money }} | {{ txt('Due', 'বাকি') }}: {{ row.due_amount|money }}</small>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.status == 'SOLD' and row.realized_profit is not none %}
+                            {{ row.realized_profit|money }}
+                            <small>{% if row.realized_margin is not none %}{{ row.realized_margin|round(2) }}%{% endif %}</small>
+                        {% else %}
+                            {{ row.potential_wholesale_profit|money }}
+                            <small>{{ txt('potential', 'সম্ভাব্য') }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="no-print">
+                        <div class="inventory-row-actions stock-report-inline-actions">
+                            <a class="link-btn" href="{{ url_for('edit_tools', tool='products', q=row.imei, edit_id=row.id) }}#entity-edit-panel"><i class="fa-solid fa-pen"></i>{{ txt('Edit', 'এডিট') }}</a>
+                            <a class="link-btn" href="{{ url_for('imei_lookup', imei=row.imei) }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('History', 'হিস্ট্রি') }}</a>
+                            {% if row.status == 'IN_STOCK' and row.supplier_id %}
+                            <a class="link-btn" href="{{ url_for('suppliers', supplier_id=row.supplier_id, imei=row.imei) }}#supplier-return-form"><i class="fa-solid fa-arrow-right-arrow-left"></i>{{ txt('Supplier Return', 'সাপ্লায়ার রিটার্ন') }}</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="11">{{ txt('No stock rows found.', 'কোনো স্টক তথ্য পাওয়া যায়নি।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="stock-mobile-card-list">
+        {% for row in rows %}
+        <article class="stock-mobile-line-card">
+            <header>
+                <div>
+                    <strong>{{ row.brand }} {{ row.model }}</strong>
+                    <small>{{ row.imei }}</small>
+                </div>
+                <span class="badge {% if row.status == 'IN_STOCK' %}stock{% else %}sold{% endif %}">{{ row.status }}</span>
+            </header>
+            <div class="stock-mobile-line-grid">
+                <span><b>{{ txt('Variant', 'ভ্যারিয়েন্ট') }}</b>{{ row.storage or '-' }}</span>
+                <span><b>{{ txt('Color', 'কালার') }}</b>{{ row.color or '-' }}</span>
+                <span><b>{{ txt('Supplier', 'সাপ্লায়ার') }}</b>{{ row.supplier_name or '-' }}</span>
+                <span><b>{{ txt('Age', 'বয়স') }}</b>{% if row.age_days is not none %}{{ row.age_days }} {{ txt('day', 'দিন') }}{% else %}-{% endif %}</span>
+                <span><b>{{ txt('Purchase', 'ক্রয়') }}</b>{{ row.purchase_price|money }}</span>
+                <span><b>{{ txt('W Price', 'W দাম') }}</b>{{ row.wholesale_price|money }}</span>
+                <span><b>{{ txt('R Price', 'R দাম') }}</b>{{ row.retail_price|money }}</span>
+                <span>
+                    <b>{{ txt('Profit', 'প্রফিট') }}</b>
+                    {% if row.status == 'SOLD' and row.realized_profit is not none %}
+                        {{ row.realized_profit|money }}
+                    {% else %}
+                        {{ row.potential_wholesale_profit|money }}
+                    {% endif %}
+                </span>
+            </div>
+            {% if row.status == 'SOLD' %}
+            <div class="stock-mobile-sold-box">
+                <strong>{{ txt('Sold Info', 'সেল তথ্য') }}</strong>
+                <span>{{ row.holder_name or '-' }}</span>
+                <small>{{ txt('Invoice', 'ইনভয়েস') }}: {{ row.invoice_no or '-' }} | {{ txt('Due', 'বাকি') }}: {{ row.due_amount|money }}</small>
+            </div>
+            {% endif %}
+            <div class="inventory-row-actions stock-report-inline-actions">
+                <a class="link-btn" href="{{ url_for('edit_tools', tool='products', q=row.imei, edit_id=row.id) }}#entity-edit-panel"><i class="fa-solid fa-pen"></i>{{ txt('Edit', 'এডিট') }}</a>
+                <a class="link-btn" href="{{ url_for('imei_lookup', imei=row.imei) }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('History', 'হিস্ট্রি') }}</a>
+                {% if row.status == 'IN_STOCK' and row.supplier_id %}
+                <a class="link-btn" href="{{ url_for('suppliers', supplier_id=row.supplier_id, imei=row.imei) }}#supplier-return-form"><i class="fa-solid fa-arrow-right-arrow-left"></i>{{ txt('Supplier Return', 'সাপ্লায়ার রিটার্ন') }}</a>
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <p class="empty-state">{{ txt('No stock rows found.', 'কোনো স্টক তথ্য পাওয়া যায়নি।') }}</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print stock-mobile-hide">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-warehouse"></i>{{ txt('Stock Tools', 'স্টক টুলস') }}</h4>
+        <p>{{ txt('Stock export and print options stay at the bottom to keep the report head cleaner.', 'report head-কে cleaner রাখতে stock export ও print option নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <a class="link-btn" href="{{ url_for('stock_report_export_csv', q=q, status=status_filter, brand=brand_filter, category=category_filter, supplier_id=supplier_filter, sort=sort_key, limit=limit_value) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV ডাউনলোড') }}</a>
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print / Save PDF', 'প্রিন্ট / PDF সেভ') }}</button>
+    </div>
+</section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const toggles = Array.from(document.querySelectorAll('[data-stock-actions-toggle]'));
+    if (!toggles.length) return;
+
+    function closeAll(exceptId = '') {
+        document.querySelectorAll('.stock-product-actions').forEach((el) => {
+            if (exceptId && el.id === exceptId) return;
+            el.hidden = true;
+        });
+    }
+
+    toggles.forEach((button) => {
+        button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-stock-actions-toggle') || '';
+            if (!targetId) return;
+            const panel = document.getElementById(targetId);
+            if (!panel) return;
+            const willOpen = panel.hidden;
+            closeAll(targetId);
+            panel.hidden = !willOpen;
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-stock-actions-toggle]');
+        const panel = event.target.closest('.stock-product-actions');
+        if (!trigger && !panel) {
+            closeAll();
+        }
+    });
+})();
+</script>
+{% endblock %}

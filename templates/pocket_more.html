@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}More | Soft X{% endblock %}
+{% block content %}
+<section class="money-center-shell pocket-more-shell">
+    <section class="panel money-hero-card pocket-hero-card">
+        <div class="pocket-home-head">
+            <div>
+                <h3 class="section-title"><i class="fa-solid fa-ellipsis"></i>{{ txt('More Options', 'মোর অপশন') }}</h3>
+                <p class="muted-text">{{ txt('Settings, account safety and extra tools stay here to keep home clean.', 'হোম পরিষ্কার রাখতে settings, account safety এবং extra tools এখানে রাখা হয়েছে।') }}</p>
+            </div>
+            <a class="link-btn" href="{{ url_for('money_center') }}"><i class="fa-solid fa-house"></i>{{ txt('Back Home', 'হোমে ফিরুন') }}</a>
+        </div>
+
+        <div class="money-quick-grid pocket-more-grid">
+            <a class="money-quick-box" href="{{ url_for('reports', preset='month') }}">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>{{ txt('Reports', 'রিপোর্ট') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('reports', preset='month') }}#ledgerCard">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>{{ txt('Delete Wrong Entry', 'ভুল এন্ট্রি ডিলিট') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('expenses') }}">
+                <i class="fa-solid fa-receipt"></i>
+                <span>{{ txt('Expense Module', 'খরচ মডিউল') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('backups') }}">
+                <i class="fa-solid fa-database"></i>
+                <span>{{ txt('Backup Center', 'ব্যাকআপ সেন্টার') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('account_password') }}">
+                <i class="fa-solid fa-key"></i>
+                <span>{{ txt('Password & Profile', 'পাসওয়ার্ড ও প্রোফাইল') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('set_language', lang=('en' if ui_lang == 'bn' else 'bn'), next=request.path) }}">
+                <i class="fa-solid fa-language"></i>
+                <span>{{ txt('Change Language', 'ভাষা পরিবর্তন') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('set_language', lang='bn', next=request.path) }}">
+                <i class="fa-solid fa-font"></i>
+                <span>{{ txt('বাংলা UI', 'বাংলা UI') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('set_language', lang='en', next=request.path) }}">
+                <i class="fa-solid fa-font"></i>
+                <span>{{ txt('English UI', 'English UI') }}</span>
+            </a>
+            <a class="money-quick-box" href="{{ url_for('client_logout') }}">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>{{ txt('Sign Out', 'সাইন আউট') }}</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="panel money-card pocket-profile-summary">
+        <h3 class="section-title"><i class="fa-solid fa-id-card"></i>{{ txt('Account Snapshot', 'একাউন্ট স্ন্যাপশট') }}</h3>
+        <div class="pocket-summary-grid">
+            <article>
+                <span>{{ txt('Name', 'নাম') }}</span>
+                <strong>{{ (current_tenant.owner_name or current_tenant.shop_name) if current_tenant else '-' }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('User Name', 'ইউজার নেম') }}</span>
+                <strong>{{ current_tenant.shop_name if current_tenant else '-' }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Login ID', 'লগইন আইডি') }}</span>
+                <strong>{{ current_tenant.username if current_tenant else '-' }}</strong>
+            </article>
+            <article>
+                <span>{{ txt('Phone', 'ফোন') }}</span>
+                <strong>{{ current_tenant.phone if current_tenant and current_tenant.phone else '-' }}</strong>
+            </article>
+        </div>
+    </section>
+</section>
+{% endblock %}

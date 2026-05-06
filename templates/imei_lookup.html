@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}{{ tracking_lookup_label }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel lookup-search-panel">
+    <div class="panel-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-magnifying-glass"></i>{{ tracking_lookup_label }}</h3>
+            <p class="muted-text">{{ txt('Open a professional history desk for one product, one IMEI and every linked movement.', 'একটি product, একটি IMEI এবং এর সাথে যুক্ত সব movement-এর জন্য professional history desk খুলুন।') }}</p>
+        </div>
+        {% if imei and record %}
+        <div class="toolbar">
+            <a class="btn-secondary" href="{{ url_for('edit_tools', tool='products', q=record.imei, edit_id=record.id) }}#entity-edit-panel"><i class="fa-solid fa-screwdriver-wrench"></i>{{ txt('Edit Tools', 'এডিট টুলস') }}</a>
+        </div>
+        {% endif %}
+    </div>
+    <form method="get" class="toolbar lookup-toolbar">
+        <input id="lookupImeiInput" type="text" name="imei" value="{{ imei }}" placeholder="{{ tracking_code_placeholder }}" maxlength="{{ tracking_code_max_length }}" data-scan-mode="{{ tracking_code_mode }}" data-scan-label="{{ tracking_code_label }}">
+        <button type="button" class="btn-secondary" data-scan-target="#lookupImeiInput"><i class="fa-solid fa-barcode"></i>Scan</button>
+        <button type="submit"><i class="fa-solid fa-search"></i>Search</button>
+    </form>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#lookupImeiInput" class="module-focus-card">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <strong>{{ txt('Search', 'সার্চ') }}</strong>
+        <span>{{ txt('Find one product', 'একটি product খুলুন') }}</span>
+    </a>
+    {% if imei and record %}
+    <a href="#lookup-profile-panel" class="module-focus-card">
+        <i class="fa-solid fa-mobile-screen"></i>
+        <strong>{{ txt('Profile', 'প্রোফাইল') }}</strong>
+        <span>{{ txt('See product summary', 'product summary দেখুন') }}</span>
+    </a>
+    <a href="#lookup-sales-history" class="module-focus-card">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <strong>{{ txt('History', 'হিস্ট্রি') }}</strong>
+        <span>{{ txt('Sales and return trail', 'sales ও return trail') }}</span>
+    </a>
+    <a href="#lookup-adjustment-history" class="module-focus-card">
+        <i class="fa-solid fa-sliders"></i>
+        <strong>{{ txt('Adjustments', 'এডজাস্টমেন্ট') }}</strong>
+        <span>{{ txt('Manual stock actions', 'manual stock action') }}</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('edit_tools') }}" class="module-focus-card">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+        <strong>{{ txt('Edit Tools', 'এডিট টুলস') }}</strong>
+        <span>{{ txt('Safe product edit desk', 'safe edit desk') }}</span>
+    </a>
+    <a href="{{ url_for('stock_report') }}" class="module-focus-card">
+        <i class="fa-solid fa-warehouse"></i>
+        <strong>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</strong>
+        <span>{{ txt('Go to stock view', 'স্টক ভিউ খুলুন') }}</span>
+    </a>
+    <a href="{{ url_for('products') }}" class="module-focus-card">
+        <i class="fa-solid fa-box-open"></i>
+        <strong>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</strong>
+        <span>{{ txt('Add new tracked item', 'নতুন tracked item') }}</span>
+    </a>
+    {% endif %}
+</section>
+
+{% if imei and record %}
+<section class="lookup-workspace">
+    <article class="panel lookup-profile-panel" id="lookup-profile-panel">
+        <div class="lookup-profile-head">
+            <div>
+                <div class="entity-workspace-kicker">{{ txt('Product Profile', 'প্রোডাক্ট প্রোফাইল') }}</div>
+                <h4 class="section-title"><i class="fa-solid fa-mobile-screen"></i>{{ record.brand }} {{ record.model }}</h4>
+                <p class="muted-text">{{ txt('Use this history desk to verify edit safety, ownership trail and return movement before changing any live data.', 'live data edit করার আগে edit safety, ownership trail এবং return movement verify করতে এই history desk ব্যবহার করুন।') }}</p>
+            </div>
+            <span class="badge {% if record.status == 'IN_STOCK' %}stock{% else %}sold{% endif %}">{{ record.status }}</span>
+        </div>
+
+        <div class="entity-metric-grid">
+            <article class="entity-metric-card">
+                <span>{{ tracking_code_label }}</span>
+                <strong>{{ record.imei }}</strong>
+                <small>{{ txt('Unique product tracking code', 'unique product tracking code') }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Supplier', 'সাপ্লায়ার') }}</span>
+                <strong>{{ record.supplier_name or "-" }}</strong>
+                <small>{{ txt('Received', 'রিসিভ') }}: {{ record.received_date or "-" }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Pricing', 'প্রাইসিং') }}</span>
+                <strong>{{ record.purchase_price|money }}</strong>
+                <small>W {{ record.wholesale_price|money }} | R {{ record.retail_price|money }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Warranty', 'ওয়ারেন্টি') }}</span>
+                <strong>{% if record.warranty_type == 'OFFICIAL' %}{{ txt('Official', 'অফিসিয়াল') }}{% elif record.warranty_type == 'UNOFFICIAL' %}{{ txt('Unofficial', 'আনঅফিসিয়াল') }}{% else %}-{% endif %}</strong>
+                <small>{{ record.category or "-" }}</small>
+            </article>
+        </div>
+
+        <div class="entity-metric-grid lookup-metric-strip">
+            <article class="entity-metric-card">
+                <span>{{ txt('Sales', 'সেল') }}</span>
+                <strong>{{ lookup_metrics.sales_count }}</strong>
+                <small>{{ txt('Linked invoices', 'linked invoices') }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Returns', 'রিটার্ন') }}</span>
+                <strong>{{ lookup_metrics.return_count }}</strong>
+                <small>{{ txt('Completed return events', 'completed return events') }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Adjustments', 'এডজাস্টমেন্ট') }}</span>
+                <strong>{{ lookup_metrics.adjustment_count }}</strong>
+                <small>{{ txt('Manual stock actions', 'manual stock actions') }}</small>
+            </article>
+            <article class="entity-metric-card">
+                <span>{{ txt('Active Profit', 'অ্যাকটিভ প্রফিট') }}</span>
+                <strong>{{ lookup_metrics.lifetime_profit|money }}</strong>
+                <small>{{ txt('Only active sales counted', 'only active sales counted') }}</small>
+            </article>
+        </div>
+    </article>
+
+    <div class="lookup-history-stack">
+        <article class="panel" id="lookup-sales-history">
+            <div class="panel-head">
+                <div>
+                    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Sales & Return History', 'সেলস ও রিটার্ন হিস্ট্রি') }}</h3>
+                    <p class="muted-text">{{ txt('Every ownership movement for this product stays visible here.', 'এই প্রোডাক্টের প্রতিটি ownership movement এখানে visible থাকবে।') }}</p>
+                </div>
+            </div>
+            <div class="table-wrap lookup-detail-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Sale Date', 'সেল তারিখ') }}</th>
+                            <th>{{ txt('Party', 'পার্টি') }}</th>
+                            <th>{{ txt('Type', 'টাইপ') }}</th>
+                            <th>{{ txt('Invoice', 'ইনভয়েস') }}</th>
+                            <th>{{ txt('Amount', 'এমাউন্ট') }}</th>
+                            <th>{{ txt('Paid', 'পেইড') }}</th>
+                            <th>{{ txt('Due', 'বাকি') }}</th>
+                            <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                            <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                            <th>{{ txt('Return Date', 'রিটার্ন তারিখ') }}</th>
+                            <th>{{ txt('Return Reason', 'রিটার্ন কারণ') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in sale_history %}
+                        <tr>
+                            <td>{{ s.sold_at }}</td>
+                            <td>{{ s.shop_name or "-" }}</td>
+                            <td>{{ s.sale_type }}</td>
+                            <td>{{ s.invoice_no or '-' }}</td>
+                            <td>{{ s.sold_price|money }}</td>
+                            <td>{{ s.paid_amount|money }}</td>
+                            <td>{{ s.due_amount|money }}</td>
+                            <td>{% if s.is_active == 1 %}{{ s.profit|money }}{% else %}0.00{% endif %}</td>
+                            <td>
+                                {% if s.is_active == 1 %}
+                                    <span class="badge paid">ACTIVE</span>
+                                {% else %}
+                                    <span class="badge due">RETURNED</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ s.return_date or "-" }}</td>
+                            <td>{{ s.return_reason or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="11">{{ tracking_code_label }} {{ txt('sale history not found.', 'এর কোনো sale history নেই') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="panel" id="lookup-adjustment-history">
+            <div class="panel-head">
+                <div>
+                    <h3 class="section-title"><i class="fa-solid fa-arrow-rotate-right"></i>{{ txt('Stock Adjustment History', 'স্টক এডজাস্টমেন্ট হিস্ট্রি') }}</h3>
+                    <p class="muted-text">{{ txt('Manual stock corrections stay separated for clean audit review.', 'clean audit review-এর জন্য manual stock corrections আলাদা রাখা হয়েছে।') }}</p>
+                </div>
+            </div>
+            <div class="table-wrap lookup-detail-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{ txt('Adjustment Date', 'এডজাস্টমেন্ট তারিখ') }}</th>
+                            <th>{{ txt('Action', 'অ্যাকশন') }}</th>
+                            <th>{{ txt('Reason', 'কারণ') }}</th>
+                            <th>{{ txt('Created At', 'তৈরির সময়') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in stock_adjustments %}
+                        <tr>
+                            <td>{{ row.event_date }}</td>
+                            <td>{{ row.action }}</td>
+                            <td>{{ row.reason or '-' }}</td>
+                            <td>{{ row.created_at }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">{{ txt('No manual stock adjustment for this product.', 'এই প্রোডাক্টে কোনো manual stock adjustment নেই।') }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+</section>
+    {% elif imei %}
+    <p class="empty-state">{{ tracking_code_label }} {{ txt('not found.', 'পাওয়া যায়নি।') }}</p>
+    {% else %}
+    <p class="empty-state">{{ txt('Search code to check stock.', 'স্টক চেক করতে কোড সার্চ করুন।') }}</p>
+    {% endif %}
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Lookup Tools', 'লুকআপ টুলস') }}</h4>
+        <p>{{ txt('Search result stays focused on history; print tool stays below.', 'history view focused রাখতে print tool নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Lookup', 'লুকআপ প্রিন্ট') }}</button>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Profile', 'প্রোফাইল') }} | Soft X{% endblock %}
+{% block content %}
+{% set is_admin_user = current_user and current_user.role == 'ADMIN' %}
+<section class="profile-native-shell">
+    <section class="profile-native-card">
+        <header class="profile-native-hero">
+            <div class="profile-native-hero-main">
+                <div class="profile-native-avatar">
+                    {% if account.profile_image_path %}
+                    <img src="{{ url_for('tenant_profile_image', filename=account.profile_image_path) }}" alt="{{ account.shop_name }}">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='brand/softx-icon-source.png') }}" alt="Soft X">
+                    {% endif %}
+                </div>
+                <div class="profile-native-copy">
+                    <h2>{{ account.shop_name }}</h2>
+                    <p>{{ (account.owner_name or current_user.username) if current_user else account.username }}</p>
+                    <span>{{ (account.plan_code if account.plan_code is defined and account.plan_code else 'Free plan') }}</span>
+                </div>
+            </div>
+            <div class="profile-native-meta">
+                <article>
+                    <small>{{ txt('Login ID', 'লগইন আইডি') }}</small>
+                    <strong>{{ current_user.username if current_user else account.username }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Phone', 'ফোন') }}</small>
+                    <strong>{{ account.phone or '-' }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Role', 'রোল') }}</small>
+                    <strong>{{ current_user.role if current_user else 'USER' }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Paid Till', 'পেইড আনটিল') }}</small>
+                    <strong>{{ account.paid_until or 'N/A' }}</strong>
+                </article>
+            </div>
+        </header>
+
+        <nav class="profile-native-menu">
+            <a class="profile-native-menu-item" href="{{ url_for('shop_settings') if role_access.shop_settings else url_for('account_password') }}">
+                <span class="icon tone-blue"><i class="fa-regular fa-user"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('My Profile', 'মাই প্রোফাইল') }}</strong>
+                    <small>{{ txt('Shop logo, name, owner and details', 'শপ logo, name, owner ও details') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="{{ url_for('shop_settings') if role_access.shop_settings else url_for('profile_center') }}#profilePackageCard">
+                <span class="icon tone-amber"><i class="fa-solid fa-gift"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Your Package', 'আপনার প্যাকেজ') }}</strong>
+                    <small>{{ txt('Billing, plan and paid-until status', 'বিলিং, plan ও paid-until status') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="{{ url_for('dashboard', mview='dashboard') }}">
+                <span class="icon tone-violet"><i class="fa-solid fa-chart-column"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Dashboard', 'ড্যাশবোর্ড') }}</strong>
+                    <small>{{ txt('Open your analytics dashboard', 'আপনার analytics dashboard খুলুন') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="{{ url_for('shop_settings') if role_access.shop_settings else url_for('account_password') }}">
+                <span class="icon tone-cyan"><i class="fa-solid fa-sliders"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Setting', 'সেটিং') }}</strong>
+                    <small>{{ txt('Language, modules and shop controls', 'ভাষা, modules ও shop controls') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="{{ url_for('reports', mscreen='menu') if role_access.reports else url_for('dashboard', mview='dashboard') }}">
+                <span class="icon tone-indigo"><i class="fa-solid fa-print"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Invoice Print', 'ইনভয়েস প্রিন্ট') }}</strong>
+                    <small>{{ txt('Open reports and invoice print tools', 'রিপোর্ট ও invoice print tools খুলুন') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="#profileTermsCard">
+                <span class="icon tone-pink"><i class="fa-regular fa-circle-question"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Terms & Conditions', 'Terms & Conditions') }}</strong>
+                    <small>{{ txt('Usage rules and support policy', 'ব্যবহার নীতি ও support policy') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item" href="#profileAboutCard">
+                <span class="icon tone-mint"><i class="fa-regular fa-circle-info"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('About Us', 'About Us') }}</strong>
+                    <small>{{ txt('Soft X mobile wholesale operating system', 'Soft X mobile wholesale operating system') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a class="profile-native-menu-item danger" href="{{ url_for('client_logout') }}">
+                <span class="icon tone-danger"><i class="fa-solid fa-right-from-bracket"></i></span>
+                <span class="copy">
+                    <strong>{{ txt('Log Out', 'লগ আউট') }}</strong>
+                    <small>{{ txt('Securely sign out from this device', 'এই device থেকে নিরাপদে sign out করুন') }}</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+        </nav>
+
+        <section class="profile-native-info-grid">
+            <article class="profile-native-info-card" id="profilePackageCard">
+                <header>
+                    <h3>{{ txt('Package Snapshot', 'প্যাকেজ স্ন্যাপশট') }}</h3>
+                    <span>{{ txt('Billing', 'বিলিং') }}</span>
+                </header>
+                <div class="profile-native-info-list">
+                    <div><small>{{ txt('Plan', 'প্ল্যান') }}</small><strong>{{ txt('Premium', 'প্রিমিয়াম') }}</strong></div>
+                    <div><small>{{ txt('Billing Cycle', 'বিলিং সাইকেল') }}</small><strong>{{ account.billing_cycle or '-' }}</strong></div>
+                    <div><small>{{ txt('Monthly Fee', 'মাসিক ফি') }}</small><strong>{{ account.monthly_fee|money }}</strong></div>
+                    <div><small>{{ txt('Paid Till', 'পেইড আনটিল') }}</small><strong>{{ account.paid_until or 'N/A' }}</strong></div>
+                </div>
+            </article>
+
+            <article class="profile-native-info-card" id="profileTermsCard">
+                <header>
+                    <h3>{{ txt('Terms & Conditions', 'Terms & Conditions') }}</h3>
+                    <span>{{ txt('Policy', 'পলিসি') }}</span>
+                </header>
+                <div class="profile-native-bullets">
+                    <p>{{ txt('Only authorized users should operate the business account.', 'শুধু authorized user-রাই business account operate করবেন।') }}</p>
+                    <p>{{ txt('Always keep backup active and do not share admin password publicly.', 'সবসময় backup active রাখুন এবং admin password publicভাবে share করবেন না।') }}</p>
+                    <p>{{ txt('Edit/delete sensitive records carefully to protect stock and financial history.', 'stock ও financial history রক্ষায় sensitive record edit/delete সাবধানে করুন।') }}</p>
+                </div>
+            </article>
+
+            <article class="profile-native-info-card" id="profileAboutCard">
+                <header>
+                    <h3>{{ txt('About Soft X', 'Soft X সম্পর্কে') }}</h3>
+                    <span>{{ txt('System', 'সিস্টেম') }}</span>
+                </header>
+                <div class="profile-native-bullets">
+                    <p>{{ txt('Soft X is a smart mobile-first wholesale, retail POS and stock operating system.', 'Soft X একটি smart mobile-first wholesale, retail POS ও stock operating system।') }}</p>
+                    <p>{{ txt('Built for fast daily operations, clean tracking and strong business control.', 'দ্রুত daily operation, clean tracking এবং strong business control-এর জন্য তৈরি।') }}</p>
+                    <p>{{ txt('Version', 'ভার্সন') }}: 1.0</p>
+                </div>
+            </article>
+
+            <article class="profile-native-info-card">
+                <header>
+                    <h3>{{ txt('Account Access', 'অ্যাকাউন্ট অ্যাক্সেস') }}</h3>
+                    <span>{{ txt('Security', 'সিকিউরিটি') }}</span>
+                </header>
+                <div class="profile-native-inline-actions">
+                    <a class="profile-native-mini-btn" href="{{ url_for('account_password') }}">{{ txt('Password', 'পাসওয়ার্ড') }}</a>
+                    {% if is_admin_user %}
+                    <a class="profile-native-mini-btn" href="{{ url_for('shop_settings') }}">{{ txt('Shop Settings', 'শপ সেটিংস') }}</a>
+                    {% endif %}
+                    {% if role_access.team_users and not pocket_nav_mode %}
+                    <a class="profile-native-mini-btn" href="{{ url_for('team_users') }}">{{ txt('Team Users', 'টিম ইউজার') }}</a>
+                    {% endif %}
+                </div>
+            </article>
+        </section>
+    </section>
+</section>
+{% endblock %}

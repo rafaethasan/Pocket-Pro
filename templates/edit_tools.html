@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Edit Tools', 'এডিট টুলস') }} | Soft X{% endblock %}
+{% block content %}
+{% set edit_tools_base_next = url_for('edit_tools', tool=tool, q=q) %}
+
+<section class="panel edit-tools-hero">
+    <div>
+        <h3 class="section-title"><i class="fa-solid fa-screwdriver-wrench"></i>{{ txt('Edit Tools Center', 'এডিট টুলস সেন্টার') }}</h3>
+        <p class="muted-text">
+            {{ txt('Open one clean workspace to search, edit, fix and save live records safely. Duplicate product code, duplicate shop name and duplicate supplier name are blocked automatically.', 'একটি clean workspace থেকে live record safe ভাবে search, edit, fix এবং save করুন। duplicate product code, duplicate shop name এবং duplicate supplier name অটো block হবে।') }}
+        </p>
+    </div>
+    <div class="toolbar">
+        <a class="btn-secondary" href="{{ url_for('imei_lookup') }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('History Center', 'হিস্ট্রি সেন্টার') }}</a>
+        <a class="btn-secondary" href="{{ url_for('stock_report') }}"><i class="fa-solid fa-warehouse"></i>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</a>
+        <a class="btn-secondary" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-house"></i>{{ txt('Back Home', 'হোমে যান') }}</a>
+    </div>
+</section>
+
+<section class="edit-tool-switch">
+    <a class="edit-tool-pill {% if tool == 'products' %}active{% endif %}" href="{{ url_for('edit_tools', tool='products') }}">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>{{ txt('Products', 'প্রোডাক্ট') }}</span>
+        <strong>{{ summary_counts.products }}</strong>
+    </a>
+    <a class="edit-tool-pill {% if tool == 'customers' %}active{% endif %}" href="{{ url_for('edit_tools', tool='customers') }}">
+        <i class="fa-solid fa-store"></i>
+        <span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span>
+        <strong>{{ summary_counts.customers }}</strong>
+    </a>
+    <a class="edit-tool-pill {% if tool == 'retail_customers' %}active{% endif %}" href="{{ url_for('edit_tools', tool='retail_customers') }}">
+        <i class="fa-solid fa-user-group"></i>
+        <span>{{ txt('Retail Customers', 'রিটেইল কাস্টমার') }}</span>
+        <strong>{{ summary_counts.retail_customers }}</strong>
+    </a>
+    <a class="edit-tool-pill {% if tool == 'suppliers' %}active{% endif %}" href="{{ url_for('edit_tools', tool='suppliers') }}">
+        <i class="fa-solid fa-truck-ramp-box"></i>
+        <span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span>
+        <strong>{{ summary_counts.suppliers }}</strong>
+    </a>
+</section>
+
+<section class="panel">
+    <form method="get" class="form-grid edit-tools-search-form">
+        <input type="hidden" name="tool" value="{{ tool }}">
+        <label class="span-2">
+            {{ txt('Search', 'সার্চ') }}
+            <input
+                type="text"
+                name="q"
+                value="{{ q }}"
+                placeholder="{% if tool == 'products' %}{{ txt('IMEI / Brand / Model / Variant / Supplier', 'IMEI / Brand / Model / Variant / Supplier') }}{% elif tool == 'customers' %}{{ txt('Shop / Owner / Phone / Area', 'শপ / মালিক / ফোন / এরিয়া') }}{% elif tool == 'retail_customers' %}{{ txt('Customer / Phone / Address', 'কাস্টমার / ফোন / ঠিকানা') }}{% else %}{{ txt('Supplier / Contact / Phone / Address', 'সাপ্লায়ার / কনট্যাক্ট / ফোন / ঠিকানা') }}{% endif %}"
+            >
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Search Now', 'এখনই সার্চ') }}</button>
+            <a class="btn-secondary" href="{{ url_for('edit_tools', tool=tool) }}"><i class="fa-solid fa-rotate-right"></i>{{ txt('Reset', 'রিসেট') }}</a>
+        </div>
+    </form>
+    <div class="edit-tools-inline-note">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>
+            {% if tool == 'products' %}
+            {{ txt('Same model can exist many times, but same IMEI cannot be saved twice.', 'একই মডেল অনেকবার থাকতে পারে, কিন্তু একই IMEI দুইবার save হবে না।') }}
+            {% elif tool == 'customers' %}
+            {{ txt('Duplicate wholesale shop name is blocked automatically.', 'duplicate wholesale shop name অটো block হবে।') }}
+            {% elif tool == 'retail_customers' %}
+            {{ txt('Duplicate retail customer name + phone is blocked automatically.', 'duplicate retail customer name + phone অটো block হবে।') }}
+            {% else %}
+            {{ txt('Duplicate supplier name is blocked automatically.', 'duplicate supplier name অটো block হবে।') }}
+            {% endif %}
+        </span>
+    </div>
+</section>
+
+<section class="edit-tools-layout">
+    <article class="panel">
+        <div class="panel-head">
+            <div>
+                <h3 class="section-title">
+                    {% if tool == 'products' %}<i class="fa-solid fa-box-open"></i>{{ txt('Product Record List', 'প্রোডাক্ট রেকর্ড লিস্ট') }}
+                    {% elif tool == 'customers' %}<i class="fa-solid fa-store"></i>{{ txt('Wholesale Shop List', 'হোলসেল শপ লিস্ট') }}
+                    {% elif tool == 'retail_customers' %}<i class="fa-solid fa-user-group"></i>{{ txt('Retail Customer List', 'রিটেইল কাস্টমার লিস্ট') }}
+                    {% else %}<i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Supplier List', 'সাপ্লায়ার লিস্ট') }}{% endif %}
+                </h3>
+                <p class="muted-text">{{ txt('Select one record to open the editor on the right side.', 'একটি record select করলে ডান পাশে editor open হবে।') }}</p>
+            </div>
+            <span class="badge stock">{{ results|length }} {{ txt('items', 'আইটেম') }}</span>
+        </div>
+
+        <div class="edit-record-list">
+            {% if tool == 'products' %}
+                {% for item in results %}
+                <a class="edit-record-card {% if selected_product and selected_product.id == item.id %}active{% endif %}" href="{{ url_for('edit_tools', tool='products', q=q, edit_id=item.id) }}#entity-edit-panel">
+                    <div class="edit-record-title">
+                        <strong>{{ item.brand }} {{ item.model }}</strong>
+                        <span class="badge {% if item.status == 'IN_STOCK' %}stock{% else %}sold{% endif %}">{{ item.status }}</span>
+                    </div>
+                    <div class="edit-record-meta">
+                        <span><i class="fa-solid fa-barcode"></i>{{ item.imei }}</span>
+                        <span><i class="fa-solid fa-memory"></i>{{ item.storage or '-' }}</span>
+                        <span><i class="fa-solid fa-palette"></i>{{ item.color or '-' }}</span>
+                        <span><i class="fa-solid fa-shield-halved"></i>{{ item.warranty_type or '-' }}</span>
+                    </div>
+                    <small>{{ txt('Supplier', 'সাপ্লায়ার') }}: {{ item.supplier_name or '-' }} | {{ txt('Purchase', 'ক্রয়') }}: {{ item.purchase_price|money }}</small>
+                </a>
+                {% else %}
+                <div class="empty-state-card">{{ txt('No product matched this search.', 'এই সার্চে কোনো প্রোডাক্ট মেলেনি।') }}</div>
+                {% endfor %}
+            {% elif tool == 'customers' %}
+                {% for item in results %}
+                <a class="edit-record-card {% if selected_customer and selected_customer.id == item.id %}active{% endif %}" href="{{ url_for('edit_tools', tool='customers', q=q, edit_id=item.id) }}#entity-edit-panel">
+                    <div class="edit-record-title">
+                        <strong>{{ item.shop_name }}</strong>
+                        <span class="badge stock">{{ item.sold_units }} {{ txt('units', 'ইউনিট') }}</span>
+                    </div>
+                    <div class="edit-record-meta">
+                        <span><i class="fa-solid fa-user"></i>{{ item.owner_name or '-' }}</span>
+                        <span><i class="fa-solid fa-phone"></i>{{ item.phone or '-' }}</span>
+                        <span><i class="fa-solid fa-location-dot"></i>{{ item.area or '-' }}</span>
+                    </div>
+                    <small>{{ txt('Due', 'বাকি') }}: {{ item.due_amount|money }} | {{ txt('Profit', 'প্রফিট') }}: {{ item.profit_amount|money }}</small>
+                </a>
+                {% else %}
+                <div class="empty-state-card">{{ txt('No wholesale shop matched this search.', 'এই সার্চে কোনো হোলসেল শপ মেলেনি।') }}</div>
+                {% endfor %}
+            {% elif tool == 'retail_customers' %}
+                {% for item in results %}
+                <a class="edit-record-card {% if selected_retail_customer and selected_retail_customer.id == item.id %}active{% endif %}" href="{{ url_for('edit_tools', tool='retail_customers', q=q, edit_id=item.id) }}#entity-edit-panel">
+                    <div class="edit-record-title">
+                        <strong>{{ item.full_name }}</strong>
+                        <span class="badge stock">{{ item.invoice_count }} {{ txt('invoices', 'ইনভয়েস') }}</span>
+                    </div>
+                    <div class="edit-record-meta">
+                        <span><i class="fa-solid fa-phone"></i>{{ item.phone or '-' }}</span>
+                        <span><i class="fa-solid fa-location-dot"></i>{{ item.address or '-' }}</span>
+                    </div>
+                    <small>{{ txt('Due', 'বাকি') }}: {{ item.due_amount|money }} | {{ txt('Last Sale', 'শেষ সেল') }}: {{ item.last_sale_date or '-' }}</small>
+                </a>
+                {% else %}
+                <div class="empty-state-card">{{ txt('No retail customer matched this search.', 'এই সার্চে কোনো রিটেইল কাস্টমার মেলেনি।') }}</div>
+                {% endfor %}
+            {% else %}
+                {% for item in results %}
+                <a class="edit-record-card {% if selected_supplier and selected_supplier.id == item.id %}active{% endif %}" href="{{ url_for('edit_tools', tool='suppliers', q=q, edit_id=item.id) }}#entity-edit-panel">
+                    <div class="edit-record-title">
+                        <strong>{{ item.name }}</strong>
+                        <span class="badge stock">{{ item.bought_units }} {{ txt('units', 'ইউনিট') }}</span>
+                    </div>
+                    <div class="edit-record-meta">
+                        <span><i class="fa-solid fa-user"></i>{{ item.contact_person or '-' }}</span>
+                        <span><i class="fa-solid fa-phone"></i>{{ item.phone or '-' }}</span>
+                        <span><i class="fa-solid fa-boxes-stacked"></i>{{ item.in_stock_units }} {{ txt('in stock', 'স্টকে') }}</span>
+                    </div>
+                    <small>{{ item.address or txt('No address', 'কোনো ঠিকানা নেই') }}</small>
+                </a>
+                {% else %}
+                <div class="empty-state-card">{{ txt('No supplier matched this search.', 'এই সার্চে কোনো সাপ্লায়ার মেলেনি।') }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </article>
+
+    <article class="panel entity-edit-panel" id="entity-edit-panel">
+        {% if tool == 'products' %}
+            {% if selected_product %}
+            {% set selected_product_next = url_for('edit_tools', tool='products', q=q, edit_id=selected_product.id) ~ '#entity-edit-panel' %}
+            <div class="entity-workspace">
+                <div class="entity-workspace-head">
+                    <div>
+                        <div class="entity-workspace-kicker">{{ txt('Desktop Edit Workspace', 'ডেস্কটপ এডিট ওয়ার্কস্পেস') }}</div>
+                        <h3 class="section-title"><i class="fa-solid fa-pen-to-square"></i>{{ txt('Edit Product', 'প্রোডাক্ট এডিট') }}</h3>
+                        <p class="muted-text">{{ txt('Fix wrong product entry safely. Live sale/return history stays protected and duplicate IMEI save stays blocked automatically.', 'ভুল product entry safe ভাবে ঠিক করুন। live sale/return history protected থাকবে এবং duplicate IMEI save অটো block হবে।') }}</p>
+                    </div>
+                    <div class="toolbar">
+                        <span class="badge {% if selected_product.status == 'IN_STOCK' %}stock{% else %}sold{% endif %}">{{ selected_product.status }}</span>
+                        <a class="btn-secondary" href="{{ url_for('imei_lookup', imei=selected_product.imei) }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Full History', 'ফুল হিস্ট্রি') }}</a>
+                        <a class="btn-secondary" href="{{ edit_tools_base_next }}"><i class="fa-solid fa-xmark"></i>{{ txt('Close', 'বন্ধ') }}</a>
+                    </div>
+                </div>
+
+                <div class="entity-metric-grid">
+                    <article class="entity-metric-card">
+                        <span>{{ tracking_code_label }}</span>
+                        <strong>{{ selected_product.imei }}</strong>
+                        <small>{{ txt('Unique duplicate-safe product code', 'unique duplicate-safe product code') }}</small>
+                    </article>
+                    <article class="entity-metric-card">
+                        <span>{{ txt('Supplier', 'সাপ্লায়ার') }}</span>
+                        <strong>{{ selected_product.supplier_name or '-' }}</strong>
+                        <small>{{ txt('Received', 'রিসিভ') }}: {{ selected_product.received_date or '-' }}</small>
+                    </article>
+                    <article class="entity-metric-card">
+                        <span>{{ txt('Potential Profit', 'সম্ভাব্য প্রফিট') }}</span>
+                        <strong>{{ (selected_product.wholesale_price - selected_product.purchase_price)|money }}</strong>
+                        <small>{{ txt('W price vs purchase', 'W price vs purchase') }}</small>
+                    </article>
+                    <article class="entity-metric-card">
+                        <span>{{ txt('History Footprint', 'হিস্ট্রি ফুটপ্রিন্ট') }}</span>
+                        <strong>{{ selected_product_metrics.sales_count }} {{ txt('sales', 'সেল') }}</strong>
+                        <small>{{ selected_product_metrics.return_count }} {{ txt('returns', 'রিটার্ন') }} | {{ selected_product_metrics.adjustment_count }} {{ txt('adjustments', 'এডজাস্টমেন্ট') }}</small>
+                    </article>
+                </div>
+
+                <div class="entity-workspace-body">
+                    <div class="entity-workspace-main">
+                        <form method="post" action="{{ url_for('product_update', product_id=selected_product.id) }}" class="form-grid">
+                            <input type="hidden" name="next" value="{{ selected_product_next }}">
+                            <label>
+                                {{ tracking_code_label }} *
+                                <input type="text" name="imei" value="{{ selected_product.imei }}" maxlength="{{ tracking_code_max_length }}" required>
+                            </label>
+                            <label>
+                                Brand *
+                                <input type="text" name="brand" value="{{ selected_product.brand }}" required>
+                            </label>
+                            <label>
+                                Model *
+                                <input type="text" name="model" value="{{ selected_product.model }}" required>
+                            </label>
+                            <label>
+                                Category
+                                <input type="text" name="category" value="{{ selected_product.category or '' }}">
+                            </label>
+                            <label>
+                                Color
+                                <input type="text" name="color" value="{{ selected_product.color or '' }}">
+                            </label>
+                            <label>
+                                Variant / Storage
+                                <input type="text" name="storage" value="{{ selected_product.storage or '' }}">
+                            </label>
+                            <label>
+                                {{ txt('Warranty', 'ওয়ারেন্টি') }}
+                                <select name="warranty_type">
+                                    <option value="">{{ txt('Select Warranty', 'ওয়ারেন্টি সিলেক্ট করুন') }}</option>
+                                    <option value="OFFICIAL" {% if selected_product.warranty_type == 'OFFICIAL' %}selected{% endif %}>{{ txt('Official', 'অফিসিয়াল') }}</option>
+                                    <option value="UNOFFICIAL" {% if selected_product.warranty_type == 'UNOFFICIAL' %}selected{% endif %}>{{ txt('Unofficial', 'আনঅফিসিয়াল') }}</option>
+                                </select>
+                            </label>
+                            <label>
+                                Supplier
+                                <select name="supplier_id">
+                                    <option value="">-- {{ txt('Select Supplier', 'সাপ্লায়ার সিলেক্ট করুন') }} --</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier.id }}" {% if selected_product.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label>
+                                Purchase Price (BDT) *
+                                <input type="number" name="purchase_price" step="0.01" min="0" value="{{ '%.2f'|format(selected_product.purchase_price or 0) }}" required>
+                            </label>
+                            <label>
+                                Wholesale Price (BDT) *
+                                <input type="number" name="wholesale_price" step="0.01" min="0" value="{{ '%.2f'|format(selected_product.wholesale_price or 0) }}" required>
+                            </label>
+                            <label>
+                                Retail Price (BDT) *
+                                <input type="number" name="retail_price" step="0.01" min="0" value="{{ '%.2f'|format(selected_product.retail_price or 0) }}" required>
+                            </label>
+                            <label>
+                                Received Date
+                                <input type="date" name="received_date" value="{{ selected_product.received_date or today }}">
+                            </label>
+                            <label class="span-2">
+                                Note
+                                <input type="text" name="note" value="{{ selected_product.note or '' }}">
+                            </label>
+                            <div class="form-actions span-2">
+                                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Product Update', 'প্রোডাক্ট আপডেট সেভ') }}</button>
+                                <a class="btn-secondary" href="{{ url_for('imei_lookup', imei=selected_product.imei) }}"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('View History', 'হিস্ট্রি') }}</a>
+                            </div>
+                        </form>
+                        <div class="module-inline-actions module-inline-actions-secondary">
+                            {% if selected_product_can_delete %}
+                            <a class="btn-danger" href="{{ url_for('product_delete', product_id=selected_product.id, next=edit_tools_base_next) }}"><i class="fa-solid fa-trash"></i>{{ txt('Delete Product', 'প্রোডাক্ট ডিলিট') }}</a>
+                            {% else %}
+                            <span class="form-inline-note">{{ txt('Delete stays blocked when sale/return/adjustment history exists.', 'sale/return/adjustment history থাকলে delete বন্ধ থাকবে।') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <aside class="entity-workspace-side">
+                        <section class="entity-side-card">
+                            <div class="entity-side-card-head">
+                                <h4><i class="fa-solid fa-chart-line"></i>{{ txt('History Snapshot', 'হিস্ট্রি স্ন্যাপশট') }}</h4>
+                                <span>{{ txt('Lifetime', 'লাইফটাইম') }}</span>
+                            </div>
+                            <div class="entity-side-stat-grid">
+                                <article>
+                                    <strong>{{ selected_product_metrics.sales_count }}</strong>
+                                    <small>{{ txt('Sales', 'সেল') }}</small>
+                                </article>
+                                <article>
+                                    <strong>{{ selected_product_metrics.return_count }}</strong>
+                                    <small>{{ txt('Returns', 'রিটার্ন') }}</small>
+                                </article>
+                                <article>
+                                    <strong>{{ selected_product_metrics.adjustment_count }}</strong>
+                                    <small>{{ txt('Adjust', 'এডজাস্ট') }}</small>
+                                </article>
+                                <article>
+                                    <strong>{{ selected_product_metrics.lifetime_profit|money }}</strong>
+                                    <small>{{ txt('Profit', 'প্রফিট') }}</small>
+                                </article>
+                            </div>
+                        </section>
+
+                        <section class="entity-side-card">
+                            <div class="entity-side-card-head">
+                                <h4><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Recent Sales / Returns', 'সাম্প্রতিক সেল / রিটার্ন') }}</h4>
+                                <a href="{{ url_for('imei_lookup', imei=selected_product.imei) }}">{{ txt('Open all', 'সব দেখুন') }}</a>
+                            </div>
+                            <div class="entity-history-list">
+                                {% for row in selected_product_sales_preview %}
+                                <article class="entity-history-item">
+                                    <div class="entity-history-item-top">
+                                        <strong>{{ row.holder_name or txt('Unknown party', 'অজানা পার্টি') }}</strong>
+                                        <span class="badge {% if row.is_active == 1 %}paid{% else %}due{% endif %}">{% if row.is_active == 1 %}{{ txt('Active', 'অ্যাকটিভ') }}{% else %}{{ txt('Returned', 'রিটার্ন') }}{% endif %}</span>
+                                    </div>
+                                    <div class="entity-history-item-meta">
+                                        <span>{{ row.sale_type }}</span>
+                                        <span>{{ row.invoice_no or '-' }}</span>
+                                        <span>{{ row.sold_at or '-' }}</span>
+                                    </div>
+                                    <small>{{ txt('Sold', 'সেল') }}: {{ row.sold_price|money }} | {{ txt('Due', 'বাকি') }}: {{ row.due_amount|money }}</small>
+                                    {% if row.return_date %}
+                                    <small>{{ txt('Return', 'রিটার্ন') }}: {{ row.return_date }}{% if row.return_reason %} | {{ row.return_reason }}{% endif %}</small>
+                                    {% endif %}
+                                </article>
+                                {% else %}
+                                <div class="empty-state-card">{{ txt('No sales or return history yet for this product.', 'এই প্রোডাক্টে এখনো sale বা return history নেই।') }}</div>
+                                {% endfor %}
+                            </div>
+                        </section>
+
+                        <section class="entity-side-card">
+                            <div class="entity-side-card-head">
+                                <h4><i class="fa-solid fa-arrow-rotate-right"></i>{{ txt('Stock Adjustments', 'স্টক এডজাস্টমেন্ট') }}</h4>
+                                <span>{{ selected_product_metrics.adjustment_count }}</span>
+                            </div>
+                            <div class="entity-history-list">
+                                {% for row in selected_product_adjustment_preview %}
+                                <article class="entity-history-item compact">
+                                    <div class="entity-history-item-top">
+                                        <strong>{{ row.action }}</strong>
+                                        <span>{{ row.event_date }}</span>
+                                    </div>
+                                    <small>{{ row.reason or txt('No reason note', 'কোনো reason note নেই') }}</small>
+                                </article>
+                                {% else %}
+                                <div class="empty-state-card">{{ txt('No stock adjustment found for this product.', 'এই প্রোডাক্টে কোনো stock adjustment পাওয়া যায়নি।') }}</div>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state-card">{{ txt('Select one product from the left side to open the editor.', 'বাম পাশ থেকে একটি product select করলে editor open হবে।') }}</div>
+            {% endif %}
+
+        {% elif tool == 'customers' %}
+            {% if selected_customer %}
+            {% set selected_customer_next = url_for('edit_tools', tool='customers', q=q, edit_id=selected_customer.id) ~ '#entity-edit-panel' %}
+            <div class="panel-head">
+                <div>
+                    <h3 class="section-title"><i class="fa-solid fa-store"></i>{{ txt('Edit Wholesale Shop', 'হোলসেল শপ এডিট') }}</h3>
+                    <p class="muted-text">{{ txt('Update shop details safely from one clean place.', 'একটি clean জায়গা থেকে safe ভাবে shop details update করুন।') }}</p>
+                </div>
+                <a class="btn-secondary" href="{{ edit_tools_base_next }}"><i class="fa-solid fa-xmark"></i>{{ txt('Close', 'বন্ধ') }}</a>
+            </div>
+            <div class="entity-metric-grid entity-metric-grid-compact">
+                <article class="entity-metric-card"><span>{{ txt('Shop', 'শপ') }}</span><strong>{{ selected_customer.shop_name }}</strong><small>{{ selected_customer.area or '-' }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Owner', 'মালিক') }}</span><strong>{{ selected_customer.owner_name or '-' }}</strong><small>{{ selected_customer.phone or '-' }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Due', 'বাকি') }}</span><strong>{{ selected_customer.due_amount_total|money }}</strong><small>{{ txt('Wholesale ledger exposure', 'wholesale ledger exposure') }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('History', 'হিস্ট্রি') }}</span><strong>{% if selected_customer_can_delete %}{{ txt('Clean', 'ক্লিন') }}{% else %}{{ txt('Locked', 'লকড') }}{% endif %}</strong><small>{{ txt('Delete guard follows sales history', 'delete guard sales history follow করে') }}</small></article>
+            </div>
+            <form method="post" action="{{ url_for('customer_update', customer_id=selected_customer.id) }}" class="form-grid">
+                <input type="hidden" name="next" value="{{ selected_customer_next }}">
+                <label>
+                    {{ txt('Shop Name', 'শপ নাম') }} *
+                    <input type="text" name="shop_name" value="{{ selected_customer.shop_name }}" required>
+                </label>
+                <label>
+                    {{ txt('Owner Name', 'মালিকের নাম') }}
+                    <input type="text" name="owner_name" value="{{ selected_customer.owner_name or '' }}">
+                </label>
+                <label>
+                    {{ txt('Phone', 'ফোন') }}
+                    <input type="text" name="phone" value="{{ selected_customer.phone or '' }}">
+                </label>
+                <label>
+                    {{ txt('Area', 'এরিয়া') }}
+                    <input type="text" name="area" value="{{ selected_customer.area or '' }}">
+                </label>
+                <label class="span-2">
+                    {{ txt('Address', 'ঠিকানা') }}
+                    <input type="text" name="address" value="{{ selected_customer.address or '' }}">
+                </label>
+                <label class="span-2">
+                    {{ txt('Note', 'নোট') }}
+                    <input type="text" name="note" value="{{ selected_customer.note or '' }}">
+                </label>
+                <div class="form-actions span-2">
+                    <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Shop Update', 'শপ আপডেট সেভ') }}</button>
+                    <a class="btn-secondary" href="{{ url_for('customer_detail', customer_id=selected_customer.id) }}"><i class="fa-solid fa-arrow-up-right-from-square"></i>{{ txt('Open Ledger', 'লেজার খুলুন') }}</a>
+                </div>
+            </form>
+            <div class="module-inline-actions module-inline-actions-secondary">
+                {% if selected_customer_can_delete %}
+                <form method="post" action="{{ url_for('customer_delete', customer_id=selected_customer.id) }}" onsubmit="return confirm('{{ txt('Delete this wholesale shop record?', 'এই wholesale shop record ডিলিট করবেন?') }}');">
+                    <input type="hidden" name="next" value="{{ edit_tools_base_next }}">
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i>{{ txt('Delete Shop', 'শপ ডিলিট') }}</button>
+                </form>
+                {% else %}
+                <span class="form-inline-note">{{ txt('Delete stays blocked when sales history already exists.', 'sales history থাকলে delete বন্ধ থাকবে।') }}</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state-card">{{ txt('Select one wholesale shop from the left side to open the editor.', 'বাম পাশ থেকে একটি wholesale shop select করলে editor open হবে।') }}</div>
+            {% endif %}
+
+        {% elif tool == 'retail_customers' %}
+            {% if selected_retail_customer %}
+            {% set selected_retail_next = url_for('edit_tools', tool='retail_customers', q=q, edit_id=selected_retail_customer.id) ~ '#entity-edit-panel' %}
+            <div class="panel-head">
+                <div>
+                    <h3 class="section-title"><i class="fa-solid fa-user-group"></i>{{ txt('Edit Retail Customer', 'রিটেইল কাস্টমার এডিট') }}</h3>
+                    <p class="muted-text">{{ txt('Keep retail customer records clean and duplicate-free.', 'retail customer record clean ও duplicate-free রাখুন।') }}</p>
+                </div>
+                <a class="btn-secondary" href="{{ edit_tools_base_next }}"><i class="fa-solid fa-xmark"></i>{{ txt('Close', 'বন্ধ') }}</a>
+            </div>
+            <div class="entity-metric-grid entity-metric-grid-compact">
+                <article class="entity-metric-card"><span>{{ txt('Customer', 'কাস্টমার') }}</span><strong>{{ selected_retail_customer.full_name }}</strong><small>{{ selected_retail_customer.phone or '-' }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Address', 'ঠিকানা') }}</span><strong>{{ selected_retail_customer.address or '-' }}</strong><small>{{ txt('Retail identity record', 'retail identity record') }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Invoices', 'ইনভয়েস') }}</span><strong>{{ selected_retail_customer.invoice_count }}</strong><small>{{ txt('Past invoice count', 'past invoice count') }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Due', 'বাকি') }}</span><strong>{{ selected_retail_customer.due_amount_total|money }}</strong><small>{{ txt('Delete auto-blocks when history exists', 'history থাকলে delete auto-block') }}</small></article>
+            </div>
+            <form method="post" action="{{ url_for('retail_customer_update', customer_id=selected_retail_customer.id) }}" class="form-grid">
+                <input type="hidden" name="next" value="{{ selected_retail_next }}">
+                <label>
+                    {{ txt('Customer Name', 'কাস্টমারের নাম') }} *
+                    <input type="text" name="full_name" value="{{ selected_retail_customer.full_name }}" required>
+                </label>
+                <label>
+                    {{ txt('Phone', 'ফোন') }}
+                    <input type="text" name="phone" value="{{ selected_retail_customer.phone or '' }}">
+                </label>
+                <label class="span-2">
+                    {{ txt('Address', 'ঠিকানা') }}
+                    <input type="text" name="address" value="{{ selected_retail_customer.address or '' }}">
+                </label>
+                <label class="span-2">
+                    {{ txt('Note', 'নোট') }}
+                    <input type="text" name="note" value="{{ selected_retail_customer.note or '' }}">
+                </label>
+                <div class="form-actions span-2">
+                    <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Customer Update', 'কাস্টমার আপডেট সেভ') }}</button>
+                </div>
+            </form>
+            <div class="module-inline-actions module-inline-actions-secondary">
+                {% if selected_retail_customer_can_delete %}
+                <form method="post" action="{{ url_for('retail_customer_delete', customer_id=selected_retail_customer.id) }}" onsubmit="return confirm('{{ txt('Delete this retail customer record?', 'এই retail customer record ডিলিট করবেন?') }}');">
+                    <input type="hidden" name="next" value="{{ edit_tools_base_next }}">
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i>{{ txt('Delete Customer', 'কাস্টমার ডিলিট') }}</button>
+                </form>
+                {% else %}
+                <span class="form-inline-note">{{ txt('Delete stays blocked when invoice history already exists.', 'invoice history থাকলে delete বন্ধ থাকবে।') }}</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state-card">{{ txt('Select one retail customer from the left side to open the editor.', 'বাম পাশ থেকে একটি retail customer select করলে editor open হবে।') }}</div>
+            {% endif %}
+
+        {% else %}
+            {% if selected_supplier %}
+            {% set selected_supplier_next = url_for('edit_tools', tool='suppliers', q=q, edit_id=selected_supplier.id) ~ '#entity-edit-panel' %}
+            <div class="panel-head">
+                <div>
+                    <h3 class="section-title"><i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Edit Supplier', 'সাপ্লায়ার এডিট') }}</h3>
+                    <p class="muted-text">{{ txt('Update supplier details and keep supplier records clean.', 'supplier details update করুন এবং record clean রাখুন।') }}</p>
+                </div>
+                <a class="btn-secondary" href="{{ edit_tools_base_next }}"><i class="fa-solid fa-xmark"></i>{{ txt('Close', 'বন্ধ') }}</a>
+            </div>
+            <div class="entity-metric-grid entity-metric-grid-compact">
+                <article class="entity-metric-card"><span>{{ txt('Supplier', 'সাপ্লায়ার') }}</span><strong>{{ selected_supplier.name }}</strong><small>{{ selected_supplier.phone or '-' }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Contact', 'কনট্যাক্ট') }}</span><strong>{{ selected_supplier.contact_person or '-' }}</strong><small>{{ selected_supplier.address or '-' }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Linked Products', 'লিংকড প্রোডাক্ট') }}</span><strong>{{ selected_supplier.product_count }}</strong><small>{{ txt('Current product links', 'current product links') }}</small></article>
+                <article class="entity-metric-card"><span>{{ txt('Catalog Links', 'ক্যাটালগ লিংক') }}</span><strong>{{ selected_supplier.catalog_count }}</strong><small>{{ txt('Delete stays blocked while linked', 'linked থাকলে delete block') }}</small></article>
+            </div>
+            <form method="post" action="{{ url_for('supplier_update', supplier_id=selected_supplier.id) }}" class="form-grid">
+                <input type="hidden" name="next" value="{{ selected_supplier_next }}">
+                <label>
+                    {{ txt('Supplier Name', 'সাপ্লায়ার নাম') }} *
+                    <input type="text" name="name" value="{{ selected_supplier.name }}" required>
+                </label>
+                <label>
+                    {{ txt('Contact Person', 'কনট্যাক্ট পারসন') }}
+                    <input type="text" name="contact_person" value="{{ selected_supplier.contact_person or '' }}">
+                </label>
+                <label>
+                    {{ txt('Phone', 'ফোন') }}
+                    <input type="text" name="phone" value="{{ selected_supplier.phone or '' }}">
+                </label>
+                <label>
+                    {{ txt('Address', 'ঠিকানা') }}
+                    <input type="text" name="address" value="{{ selected_supplier.address or '' }}">
+                </label>
+                <label class="span-2">
+                    {{ txt('Note', 'নোট') }}
+                    <input type="text" name="note" value="{{ selected_supplier.note or '' }}">
+                </label>
+                <div class="form-actions span-2">
+                    <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Supplier Update', 'সাপ্লায়ার আপডেট সেভ') }}</button>
+                </div>
+            </form>
+            <div class="module-inline-actions module-inline-actions-secondary">
+                {% if selected_supplier_can_delete %}
+                <form method="post" action="{{ url_for('supplier_delete', supplier_id=selected_supplier.id) }}" onsubmit="return confirm('{{ txt('Delete this supplier record?', 'এই supplier record ডিলিট করবেন?') }}');">
+                    <input type="hidden" name="next" value="{{ edit_tools_base_next }}">
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i>{{ txt('Delete Supplier', 'সাপ্লায়ার ডিলিট') }}</button>
+                </form>
+                {% else %}
+                <span class="form-inline-note">{{ txt('Delete stays blocked while product/model data is linked.', 'product/model data linked থাকলে delete বন্ধ থাকবে।') }}</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state-card">{{ txt('Select one supplier from the left side to open the editor.', 'বাম পাশ থেকে একটি supplier select করলে editor open হবে।') }}</div>
+            {% endif %}
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

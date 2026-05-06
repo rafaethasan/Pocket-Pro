@@ -1,0 +1,15 @@
+/* Lightweight offline fallback for Font Awesome classes. */
+.fa-solid,
+.fa-regular,
+.fa-brands {
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+}
+
+.fa-solid::before,
+.fa-regular::before,
+.fa-brands::before {
+    content: "\2022";
+    font-weight: 700;
+}

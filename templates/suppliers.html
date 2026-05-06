@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Suppliers | Soft X{% endblock %}
+{% block content %}
+{% set sp = namespace(total_purchase=0, total_bought=0, total_in_stock=0, total_returned=0) %}
+{% for item in suppliers %}
+    {% set sp.total_purchase = sp.total_purchase + (item.purchase_total or 0) %}
+    {% set sp.total_bought = sp.total_bought + (item.bought_units or 0) %}
+    {% set sp.total_in_stock = sp.total_in_stock + (item.in_stock_units or 0) %}
+    {% set sp.total_returned = sp.total_returned + ((item.returned_units or 0)) %}
+{% endfor %}
+<section class="panel hero-panel partner-hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('Supply Desk', 'সাপ্লাই ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Supplier Command Center', 'সাপ্লায়ার কমান্ড সেন্টার') }}</h3>
+            <p class="muted-text">{{ txt('Track incoming stock source, supplier ledger and return-to-supplier workflow from one organized workspace.', 'incoming stock source, supplier ledger এবং return-to-supplier workflow এক organized workspace থেকে ম্যানেজ করুন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="{{ url_for('products') }}"><i class="fa-solid fa-box-open"></i>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</a>
+            <a class="btn-secondary" href="{{ url_for('stock_report') }}"><i class="fa-solid fa-warehouse"></i>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#supplier-add" class="module-focus-card">
+        <i class="fa-solid fa-truck-ramp-box"></i>
+        <strong>{{ txt('Add Supplier', 'সাপ্লায়ার যোগ') }}</strong>
+        <span>{{ txt('Create source profile', 'নতুন source profile') }}</span>
+    </a>
+    <a href="#supplier-return-form" class="module-focus-card">
+        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        <strong>{{ txt('Supplier Return', 'সাপ্লায়ার রিটার্ন') }}</strong>
+        <span>{{ txt('Return bad stock', 'সমস্যার stock ফেরত') }}</span>
+    </a>
+    <a href="#supplier-ledger" class="module-focus-card">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        <strong>{{ txt('Ledger', 'লেজার') }}</strong>
+        <span>{{ txt('Purchase and return view', 'ক্রয় ও রিটার্ন ভিউ') }}</span>
+    </a>
+    <a href="#supplier-return-history" class="module-focus-card">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <strong>{{ txt('Return History', 'রিটার্ন হিস্ট্রি') }}</strong>
+        <span>{{ txt('Recent supplier returns', 'সাম্প্রতিক রিটার্ন') }}</span>
+    </a>
+</section>
+
+<section class="metric-grid partner-summary-grid">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span>
+        <h2>{{ suppliers|length }}</h2>
+        <small>{{ txt('Connected supply partners', 'connected supply partners') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-boxes-stacked"></i>{{ txt('Bought Units', 'কেনা ইউনিট') }}</span>
+        <h2>{{ sp.total_bought }}</h2>
+        <small>{{ txt('Lifetime purchased units', 'lifetime purchased units') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-box-open"></i>{{ txt('In Stock', 'স্টকে') }}</span>
+        <h2>{{ sp.total_in_stock }}</h2>
+        <small>{{ txt('Units still staying in stock', 'units still staying in stock') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Returned', 'রিটার্ন') }}</span>
+        <h2>{{ sp.total_returned }}</h2>
+        <small>{{ txt('Units returned back to supplier', 'units returned back to supplier') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ txt('Purchase Cost', 'মোট ক্রয়') }}</span>
+        <h2>{{ sp.total_purchase|money }}</h2>
+        <small>{{ txt('Supplier-side purchase value', 'supplier-side purchase value') }}</small>
+    </article>
+</section>
+
+<section class="split suppliers-top-split">
+    <section class="panel" id="supplier-add">
+        <div class="panel-head">
+            <h3 class="section-title"><i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Add Supplier', 'নতুন সাপ্লায়ার') }}</h3>
+            <span class="badge stock">{{ suppliers|length }} {{ txt('supplier', 'সাপ্লায়ার') }}</span>
+        </div>
+        <form method="post" class="form-grid">
+            <label>
+                {{ txt('Supplier Name', 'সাপ্লায়ার নাম') }} *
+                <input type="text" name="name" required placeholder="ABC Mobile Import">
+            </label>
+            <label>
+                {{ txt('Contact Person', 'কনট্যাক্ট পারসন') }}
+                <input type="text" name="contact_person" placeholder="{{ txt('Name', 'নাম') }}">
+            </label>
+            <label>
+                {{ txt('Phone', 'ফোন') }}
+                <input type="text" name="phone" placeholder="01XXXXXXXXX">
+            </label>
+            <label>
+                {{ txt('Address', 'ঠিকানা') }}
+                <input type="text" name="address" placeholder="{{ txt('Address', 'ঠিকানা') }}">
+            </label>
+            <label class="span-2">
+                {{ txt('Note', 'নোট') }}
+                <input type="text" name="note" placeholder="{{ txt('Optional note', 'অপশনাল নোট') }}">
+            </label>
+            <div class="form-actions span-2">
+                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Supplier', 'সাপ্লায়ার সেভ') }}</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel supplier-return-panel" id="supplier-return-form">
+        <div class="panel-head">
+            <div>
+                <h3 class="section-title"><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Return Stock To Supplier', 'সাপ্লায়ারকে স্টক রিটার্ন') }}</h3>
+                <p class="muted-text">{{ txt('Use this only when an unsold in-stock phone must physically go back to the supplier.', 'শুধু unsold in-stock ফোন supplier-এর কাছে physically ফেরত দিলে এই form ব্যবহার করুন।') }}</p>
+            </div>
+            <span class="badge sold">{{ txt('Admin Action', 'অ্যাডমিন অ্যাকশন') }}</span>
+        </div>
+        <form method="post" action="{{ url_for('supplier_return_stock') }}" class="form-grid">
+            <label>
+                {{ txt('Supplier', 'সাপ্লায়ার') }} *
+                <select name="supplier_id" required>
+                    <option value="">{{ txt('Select Supplier', 'সাপ্লায়ার সিলেক্ট করুন') }}</option>
+                    {% for item in suppliers %}
+                    <option value="{{ item.id }}" {% if supplier_prefill_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                {{ tracking_code_label }} *
+                <div class="scan-inline-wrap">
+                    <input
+                        type="text"
+                        name="imei"
+                        value="{{ imei_prefill }}"
+                        required
+                        placeholder="{{ tracking_code_placeholder }}"
+                        data-scan-mode="{{ tracking_code_mode }}"
+                        data-scan-label="{{ tracking_code_label }}"
+                    >
+                    <button type="button" class="btn-secondary" data-scan-target="input[name='imei']"><i class="fa-solid fa-barcode"></i>{{ txt('Scan', 'স্ক্যান') }}</button>
+                </div>
+            </label>
+            <label>
+                {{ txt('Return Date', 'রিটার্ন তারিখ') }}
+                <input type="date" name="return_date" value="{{ today }}" required>
+            </label>
+            <label>
+                {{ txt('Reason', 'কারণ') }}
+                <select name="reason" required>
+                    <option value="DOA">{{ txt('DOA / Dead on arrival', 'DOA / চালু হয়নি') }}</option>
+                    <option value="Problem Unit">{{ txt('Problem Unit', 'সমস্যাযুক্ত ইউনিট') }}</option>
+                    <option value="Wrong Model">{{ txt('Wrong Model / Wrong Variant', 'ভুল মডেল / ভুল ভ্যারিয়েন্ট') }}</option>
+                    <option value="Warranty Claim">{{ txt('Warranty Claim', 'ওয়ারেন্টি ক্লেইম') }}</option>
+                    <option value="Supplier Exchange">{{ txt('Supplier Exchange', 'সাপ্লায়ার এক্সচেঞ্জ') }}</option>
+                    <option value="Other">{{ txt('Other', 'অন্যান্য') }}</option>
+                </select>
+            </label>
+            <label class="span-2">
+                {{ txt('Note', 'নোট') }}
+                <textarea name="note" rows="3" placeholder="{{ txt('Write issue details or supplier discussion note here', 'সমস্যার বিস্তারিত বা supplier discussion note এখানে লিখুন') }}"></textarea>
+            </label>
+            <label class="checkbox-field span-2 supplier-return-confirm">
+                <input type="checkbox" name="confirm_ack" value="1" required>
+                <span>{{ txt('I confirm this unit is physically handed back to the supplier and should be removed from live stock.', 'আমি নিশ্চিত করছি এই ইউনিটটি physically supplier-এর কাছে ফেরত দেয়া হয়েছে এবং live stock থেকে সরানো হবে।') }}</span>
+            </label>
+            <div class="form-actions span-2">
+                <button type="submit" class="btn-danger"><i class="fa-solid fa-arrow-right-arrow-left"></i>{{ txt('Return To Supplier', 'সাপ্লায়ারকে রিটার্ন') }}</button>
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="panel" id="supplier-ledger">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-file-invoice-dollar"></i>{{ txt('Supplier Ledger', 'সাপ্লায়ার লেজার') }}</h3>
+        <span class="badge stock">{{ suppliers|length }} {{ txt('suppliers', 'সাপ্লায়ার') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Supplier', 'সাপ্লায়ার') }}</th>
+                    <th>{{ txt('Contact', 'কনট্যাক্ট') }}</th>
+                    <th>{{ txt('Phone', 'ফোন') }}</th>
+                    <th>{{ txt('Bought Units', 'মোট কেনা ইউনিট') }}</th>
+                    <th>{{ txt('Purchase Cost', 'মোট ক্রয়') }}</th>
+                    <th>{{ txt('In Stock', 'স্টকে আছে') }}</th>
+                    <th>{{ txt('Returned', 'রিটার্ন') }}</th>
+                    <th>{{ txt('Return Cost', 'রিটার্ন কস্ট') }}</th>
+                    <th>{{ txt('Last Return', 'শেষ রিটার্ন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in suppliers %}
+                <tr>
+                    <td>{{ s.name }}</td>
+                    <td>{{ s.contact_person or "-" }}</td>
+                    <td>{{ s.phone or "-" }}</td>
+                    <td>{{ s.bought_units }}</td>
+                    <td>{{ s.purchase_total|money }}</td>
+                    <td>{{ s.in_stock_units }}</td>
+                    <td>{{ s.returned_units or 0 }}</td>
+                    <td>{{ (s.returned_cost or 0)|money }}</td>
+                    <td>{{ s.last_returned_at or "-" }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">{{ txt('No supplier data found.', 'কোনো supplier data নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel" id="supplier-return-history">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Recent Supplier Returns', 'সাম্প্রতিক supplier return') }}</h3>
+        <span class="badge stock">{{ recent_supplier_returns|length }} {{ txt('items', 'আইটেম') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Supplier', 'সাপ্লায়ার') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Product', 'প্রোডাক্ট') }}</th>
+                    <th>{{ txt('Cost', 'কস্ট') }}</th>
+                    <th>{{ txt('Reason', 'কারণ') }}</th>
+                    <th>{{ txt('Note', 'নোট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in recent_supplier_returns %}
+                <tr>
+                    <td>{{ row.returned_at }}</td>
+                    <td>{{ row.supplier_name }}</td>
+                    <td><code>{{ row.imei }}</code></td>
+                    <td>
+                        {{ row.brand }} {{ row.model }}
+                        {% if row.storage %}<small>{{ row.storage }}</small>{% endif %}
+                        {% if row.color %}<small>{{ row.color }}</small>{% endif %}
+                    </td>
+                    <td>{{ row.purchase_price|money }}</td>
+                    <td>{{ row.reason }}</td>
+                    <td>{{ row.note or "-" }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">{{ txt('No supplier return history yet.', 'এখনও supplier return history নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-truck-ramp-box"></i>{{ txt('Supplier Tools', 'সাপ্লায়ার টুলস') }}</h4>
+        <p>{{ txt('Supplier print action stays at the bottom with return controls and ledger tools.', 'Supplier print action নিচে return control ও ledger tools-এর সাথে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Supplier Ledger', 'সাপ্লায়ার লেজার প্রিন্ট') }}</button>
+    </div>
+</section>
+{% endblock %}

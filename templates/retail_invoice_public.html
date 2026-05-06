@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Soft X Invoice | {{ invoice.invoice_no }}</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #eef4f2;
+            --panel: #ffffff;
+            --ink: #13352d;
+            --muted: #53746a;
+            --line: #d8e7e1;
+            --accent: #0f8a6f;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: radial-gradient(circle at top right, #f6fff9 0%, var(--bg) 42%, #e8f3ef 100%);
+            color: var(--ink);
+            padding: 1rem;
+        }
+        .invoice-wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 16px 32px rgba(13, 40, 33, 0.08);
+            overflow: hidden;
+        }
+        .head {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .brand {
+            font-size: 1.08rem;
+            font-weight: 800;
+            margin: 0;
+        }
+        .muted { color: var(--muted); margin: 0.25rem 0 0; }
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            border: 1px solid var(--line);
+            background: #f6fcfa;
+            color: var(--ink);
+            text-decoration: none;
+            padding: 0.5rem 0.85rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .btn.primary {
+            background: linear-gradient(135deg, #0f8a6f 0%, #086650 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+        .body {
+            padding: 1rem 1.25rem 1.2rem;
+        }
+        .grid {
+            display: grid;
+            gap: 0.8rem;
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            margin-bottom: 0.9rem;
+        }
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f9fdfb;
+            padding: 0.8rem;
+        }
+        .card h4 {
+            margin: 0 0 0.45rem;
+            font-size: 0.95rem;
+        }
+        .card p {
+            margin: 0.3rem 0;
+            font-size: 0.9rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.55rem;
+        }
+        th, td {
+            border: 1px solid var(--line);
+            padding: 0.5rem 0.4rem;
+            text-align: left;
+            font-size: 0.88rem;
+        }
+        th {
+            background: #f1faf6;
+            font-weight: 700;
+        }
+        .totals {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(140px, 1fr));
+            gap: 0.7rem;
+            margin-top: 0.9rem;
+        }
+        .total {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f9fdfb;
+            padding: 0.65rem;
+        }
+        .total span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.82rem;
+        }
+        .total strong {
+            font-size: 1.06rem;
+        }
+        .foot-note {
+            margin-top: 0.8rem;
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+        @media (max-width: 720px) {
+            .grid { grid-template-columns: 1fr; }
+            .totals { grid-template-columns: 1fr; }
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff; padding: 0; }
+            .invoice-wrap { border: 0; border-radius: 0; box-shadow: none; }
+            .head { border-bottom: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <section class="invoice-wrap">
+        <header class="head">
+            <div>
+                <p class="brand">Soft X{% if public_shop_name %} | {{ public_shop_name }}{% endif %}</p>
+                <p class="muted">Invoice: {{ invoice.invoice_no }} | Date: {{ invoice.sold_at }}</p>
+            </div>
+            <div class="actions no-print">
+                <a class="btn" href="{{ share_url }}" target="_blank">Refresh</a>
+                <a class="btn primary" href="{{ share_url }}?download=1">Download</a>
+                <button class="btn" onclick="window.print()">Print</button>
+            </div>
+        </header>
+
+        <div class="body">
+            <section class="grid">
+                <article class="card">
+                    <h4>Customer</h4>
+                    <p><strong>Name:</strong> {{ invoice.customer_name }}</p>
+                    <p><strong>Mobile:</strong> {{ invoice.customer_phone or '-' }}</p>
+                    <p><strong>Address:</strong> {{ invoice.customer_address or '-' }}</p>
+                </article>
+                <article class="card">
+                    <h4>Payment</h4>
+                    <p><strong>Status:</strong> {{ invoice.payment_status }}</p>
+                    <p><strong>Subtotal:</strong> {{ invoice.subtotal|money }}</p>
+                    <p><strong>Paid:</strong> {{ invoice.paid_amount|money }}</p>
+                    <p><strong>Due:</strong> {{ invoice.due_amount|money }}</p>
+                </article>
+            </section>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product Name</th>
+                        <th>Storage</th>
+                        <th>Colour</th>
+                        <th>IMEI</th>
+                        <th>Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.brand }} {{ item.model }}</td>
+                        <td>{{ item.storage or '-' }}</td>
+                        <td>{{ item.color or '-' }}</td>
+                        <td>{{ item.imei }}</td>
+                        <td>{{ item.sold_price|money }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6">No items found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <section class="totals">
+                <article class="total">
+                    <span>Subtotal</span>
+                    <strong>{{ invoice.subtotal|money }}</strong>
+                </article>
+                <article class="total">
+                    <span>Paid</span>
+                    <strong>{{ invoice.paid_amount|money }}</strong>
+                </article>
+                <article class="total">
+                    <span>Due</span>
+                    <strong>{{ invoice.due_amount|money }}</strong>
+                </article>
+            </section>
+
+            {% if invoice.note %}
+            <p class="foot-note"><strong>Note:</strong> {{ invoice.note }}</p>
+            {% endif %}
+            <p class="foot-note">Generated by Soft X smart retail POS.</p>
+        </div>
+    </section>
+</body>
+</html>

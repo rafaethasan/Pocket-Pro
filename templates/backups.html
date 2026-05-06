@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block title %}Backups | Soft X{% endblock %}
+{% block content %}
+<section class="panel backup-center-shell">
+    <div class="panel-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-database"></i>{{ txt('Backup & Restore Center', 'ব্যাকআপ ও রিস্টোর সেন্টার') }}</h3>
+            <p class="muted-text">{{ txt('Export your live data safely, save it on computer/mobile, share to Gmail or Google Drive app, and restore later with automatic safety backup.', 'live data নিরাপদে export করুন, computer/mobile-এ save করুন, Gmail বা Google Drive app-এ share করুন, আর পরে automatic safety backup সহ restore করুন।') }}</p>
+        </div>
+    </div>
+
+    <div class="backup-kpi-grid">
+        <article class="metric-card">
+            <span><i class="fa-solid fa-store"></i>{{ txt('Current Account', 'বর্তমান একাউন্ট') }}</span>
+            <h2>{{ current_tenant_label }}</h2>
+            <small>{{ txt('Only this account data will be exported/restored.', 'শুধু এই একাউন্টের data export/restore হবে।') }}</small>
+        </article>
+        <article class="metric-card">
+            <span><i class="fa-solid fa-file-shield"></i>{{ txt('Live DB', 'লাইভ DB') }}</span>
+            <h2>{{ current_db_name }}</h2>
+            <small>{{ txt('Import creates an automatic safety backup first.', 'Import-এর আগে automatic safety backup তৈরি হবে।') }}</small>
+        </article>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    {% if is_admin_user %}
+    <a href="#backup-schedule" class="module-focus-card">
+        <i class="fa-solid fa-clock"></i>
+        <strong>{{ txt('Schedule', 'শিডিউল') }}</strong>
+        <span>{{ txt('Set auto backup', 'অটো ব্যাকআপ সেট করুন') }}</span>
+    </a>
+    {% endif %}
+    <a href="#backup-package" class="module-focus-card">
+        <i class="fa-solid fa-box-archive"></i>
+        <strong>{{ txt('Full Export', 'ফুল এক্সপোর্ট') }}</strong>
+        <span>{{ txt('Best full backup', 'সেরা পূর্ণ ব্যাকআপ') }}</span>
+    </a>
+    <a href="#backup-db-copy" class="module-focus-card">
+        <i class="fa-solid fa-hard-drive"></i>
+        <strong>{{ txt('DB Copy', 'DB কপি') }}</strong>
+        <span>{{ txt('Fast local copy', 'দ্রুত লোকাল কপি') }}</span>
+    </a>
+    {% if is_admin_user %}
+    <a href="#backup-import" class="module-focus-card">
+        <i class="fa-solid fa-upload"></i>
+        <strong>{{ txt('Restore', 'রিস্টোর') }}</strong>
+        <span>{{ txt('Import backup safely', 'নিরাপদ restore') }}</span>
+    </a>
+    {% else %}
+    <a href="#backup-history" class="module-focus-card">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <strong>{{ txt('History', 'হিস্ট্রি') }}</strong>
+        <span>{{ txt('Download old backups', 'পুরনো ব্যাকআপ ডাউনলোড') }}</span>
+    </a>
+    {% endif %}
+</section>
+
+{% if is_admin_user %}
+<section class="panel backup-card backup-schedule-card" id="backup-schedule">
+    <div class="panel-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-clock"></i>{{ txt('Scheduled Auto Backup', 'শিডিউলড অটো ব্যাকআপ') }}</h3>
+            <p class="muted-text">{{ txt('Set one safe schedule and Soft X will create backup automatically when any account request wakes the app on shared hosting.', 'একটি safe schedule সেট করুন। shared hosting-এ app জেগে উঠলেই Soft X auto backup তৈরি করবে।') }}</p>
+        </div>
+        <span class="badge {% if backup_schedule.is_enabled == 1 %}stock{% else %}due{% endif %}">
+            {{ txt('Enabled', 'চালু') if backup_schedule.is_enabled == 1 else txt('Paused', 'বন্ধ') }}
+        </span>
+    </div>
+
+    <div class="backup-kpi-grid backup-schedule-metrics">
+        <article class="metric-card">
+            <span><i class="fa-solid fa-forward"></i>{{ txt('Next Run', 'পরের রান') }}</span>
+            <h2>{{ backup_schedule.next_run_at or txt('Not scheduled', 'শিডিউল নেই') }}</h2>
+            <small>{{ txt('Server time based fallback scheduler.', 'server time ভিত্তিক fallback scheduler।') }}</small>
+        </article>
+        <article class="metric-card">
+            <span><i class="fa-solid fa-check-circle"></i>{{ txt('Last Run', 'সর্বশেষ রান') }}</span>
+            <h2>{{ backup_schedule.last_run_at or txt('Never', 'কখনও হয়নি') }}</h2>
+            <small>{{ backup_schedule.last_status or txt('No status yet', 'এখনও status নেই') }}</small>
+        </article>
+        <article class="metric-card">
+            <span><i class="fa-solid fa-file-zipper"></i>{{ txt('Last File', 'সর্বশেষ ফাইল') }}</span>
+            <h2>{{ backup_schedule.last_filename or '-' }}</h2>
+            <small>
+                {% if google_drive_ready %}
+                {{ txt('Google Drive config is ready.', 'Google Drive config ready আছে।') }}
+                {% else %}
+                {{ txt('Google Drive config not ready yet.', 'Google Drive config এখনও ready নয়।') }}
+                {% endif %}
+            </small>
+        </article>
+    </div>
+
+    <form method="post" class="backup-schedule-form" id="backupScheduleForm">
+        <input type="hidden" name="action" value="save_schedule">
+        <label class="inline-check full">
+            <input type="checkbox" name="schedule_enabled" value="1" {% if backup_schedule.is_enabled == 1 %}checked{% endif %}>
+            <span>{{ txt('Enable scheduled auto backup for this account', 'এই account-এর জন্য scheduled auto backup চালু করুন') }}</span>
+        </label>
+        <label>
+            {{ txt('Backup Format', 'ব্যাকআপ ফরম্যাট') }}
+            <select name="schedule_backup_type">
+                <option value="PACKAGE" {% if backup_schedule.backup_type == 'PACKAGE' %}selected{% endif %}>{{ txt('Full Export Package', 'ফুল এক্সপোর্ট প্যাকেজ') }}</option>
+                <option value="DB_COPY" {% if backup_schedule.backup_type == 'DB_COPY' %}selected{% endif %}>{{ txt('Fast DB Copy', 'ফাস্ট DB কপি') }}</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Frequency', 'ফ্রিকোয়েন্সি') }}
+            <select name="schedule_frequency" id="backupScheduleFrequency">
+                <option value="DAILY" {% if backup_schedule.frequency == 'DAILY' %}selected{% endif %}>{{ txt('Daily', 'দৈনিক') }}</option>
+                <option value="WEEKLY" {% if backup_schedule.frequency == 'WEEKLY' %}selected{% endif %}>{{ txt('Weekly', 'সাপ্তাহিক') }}</option>
+                <option value="MONTHLY" {% if backup_schedule.frequency == 'MONTHLY' %}selected{% endif %}>{{ txt('Monthly', 'মাসিক') }}</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Run Time', 'রান টাইম') }}
+            <input type="time" name="schedule_run_time" value="{{ backup_schedule_time_value }}">
+        </label>
+        <label class="backup-weekly-wrap {% if backup_schedule.frequency != 'WEEKLY' %}is-hidden{% endif %}">
+            {{ txt('Weekly Day', 'সাপ্তাহিক দিন') }}
+            <select name="schedule_weekly_day">
+                {% for opt in backup_schedule_weekdays %}
+                <option value="{{ opt.value }}" {% if backup_schedule.weekly_day == opt.value %}selected{% endif %}>{{ txt(opt.label_en, opt.label_bn) }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="backup-monthly-wrap {% if backup_schedule.frequency != 'MONTHLY' %}is-hidden{% endif %}">
+            {{ txt('Monthly Day', 'মাসের দিন') }}
+            <input type="number" name="schedule_monthly_day" min="1" max="28" value="{{ backup_schedule.monthly_day or 1 }}">
+        </label>
+        <label class="inline-check full">
+            <input type="checkbox" name="schedule_sync_google" value="1" {% if backup_schedule.sync_google == 1 %}checked{% endif %}>
+            <span>{{ txt('Also try Google Drive auto upload after scheduled backup', 'Scheduled backup-এর পরে Google Drive auto upload করার চেষ্টা করুন') }}</span>
+        </label>
+        {% if backup_schedule.last_error %}
+        <p class="form-inline-note">{{ txt('Last error', 'সর্বশেষ error') }}: {{ backup_schedule.last_error }}</p>
+        {% endif %}
+        <div class="form-actions full">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Schedule', 'শিডিউল সেভ করুন') }}</button>
+        </div>
+    </form>
+
+    <form method="post" class="backup-inline-run-form">
+        <input type="hidden" name="action" value="run_scheduled_now">
+        <button type="submit" class="btn-secondary"><i class="fa-solid fa-play"></i>{{ txt('Run Scheduled Backup Now', 'এখনই scheduled backup চালান') }}</button>
+    </form>
+
+    <ul class="backup-note-list">
+        <li>{{ txt('Nothing is deleted before backup. Existing live data stays untouched.', 'Backup নেওয়ার আগে কিছু delete হয় না। existing live data untouched থাকে।') }}</li>
+        <li>{{ txt('On shared hosting, this fallback scheduler runs when any account page visit wakes the app.', 'Shared hosting-এ account page visit app-কে জাগালে fallback scheduler run করে।') }}</li>
+        <li>{{ txt('For monthly schedule, day 1-28 is safest across every month.', 'মাসিক শিডিউলের জন্য ১-২৮ দিন সবচেয়ে safe।') }}</li>
+    </ul>
+</section>
+{% endif %}
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-database"></i>{{ txt('Backup Tools', 'ব্যাকআপ টুলস') }}</h4>
+        <p>{{ txt('Backup page stays focused on safety actions, while print stays below.', 'Backup page-এ safety action উপরে রাখা হয়েছে, print নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Backup Page', 'ব্যাকআপ পেজ প্রিন্ট') }}</button>
+    </div>
+</section>
+
+<section class="split backup-split">
+    <article class="panel backup-card" id="backup-package">
+        <div class="panel-head">
+            <h3 class="section-title"><i class="fa-solid fa-box-archive"></i>{{ txt('Full Export Package', 'ফুল এক্সপোর্ট প্যাকেজ') }}</h3>
+        </div>
+        <p class="muted-text">{{ txt('Recommended. Includes tenant database + receipt/profile/receiver files used by this account.', 'Recommended। এই account-এর tenant database + receipt/profile/receiver file include করবে।') }}</p>
+        <form method="post" class="backup-form-grid">
+            <input type="hidden" name="action" value="create_package">
+            <label class="inline-check">
+                <input type="checkbox" name="sync_google" value="1">
+                <span>{{ txt('Auto upload to Google Drive (if server config is ready)', 'Server config থাকলে Google Drive-এ auto upload করুন') }}</span>
+            </label>
+            <div class="form-actions">
+                <button type="submit"><i class="fa-solid fa-file-export"></i>{{ txt('Create Full Export', 'ফুল এক্সপোর্ট তৈরি করুন') }}</button>
+            </div>
+        </form>
+        <ul class="backup-note-list">
+            <li>{{ txt('Download it to computer or phone.', 'এটি computer বা phone-এ download করতে পারবেন।') }}</li>
+            <li>{{ txt('Share button can open mobile share sheet for Gmail / Drive / Files app.', 'Share button mobile share sheet খুলে Gmail / Drive / Files app-এ পাঠাতে পারে।') }}</li>
+            <li>{{ txt('Best option for manual restore later.', 'পরে manual restore-এর জন্য এটিই সবচেয়ে ভালো option।') }}</li>
+        </ul>
+    </article>
+
+    <article class="panel backup-card" id="backup-db-copy">
+        <div class="panel-head">
+            <h3 class="section-title"><i class="fa-solid fa-hard-drive"></i>{{ txt('Fast DB Copy', 'ফাস্ট DB কপি') }}</h3>
+        </div>
+        <p class="muted-text">{{ txt('Creates a raw SQLite backup copy quickly. Good for extra local safety copy, but full export package is better for complete restore.', 'দ্রুত raw SQLite backup copy তৈরি করে। extra local safety copy হিসেবে ভালো, তবে complete restore-এর জন্য full export package ভালো।') }}</p>
+        <form method="post" class="backup-form-grid">
+            <input type="hidden" name="action" value="create_db_backup">
+            <label class="inline-check">
+                <input type="checkbox" name="sync_google" value="1">
+                <span>{{ txt('Auto upload to Google Drive (if server config is ready)', 'Server config থাকলে Google Drive-এ auto upload করুন') }}</span>
+            </label>
+            <div class="form-actions">
+                <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Create DB Copy', 'DB কপি তৈরি করুন') }}</button>
+            </div>
+        </form>
+        <p class="muted-text">{{ txt('Use this for extra local backup copy. For import/restore, full export package is safer.', 'এটি extra local backup copy হিসেবে ব্যবহার করুন। import/restore-এর জন্য full export package বেশি safe।') }}</p>
+    </article>
+</section>
+
+{% if is_admin_user %}
+<section class="panel backup-card backup-import-card" id="backup-import">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-upload"></i>{{ txt('Import Backup Package', 'ব্যাকআপ প্যাকেজ ইমপোর্ট') }}</h3>
+    </div>
+    <p class="muted-text">{{ txt('Admin only. Before import, Soft X will automatically create a safety backup of your current live account.', 'শুধু admin-এর জন্য। import-এর আগে Soft X আপনার current live account-এর automatic safety backup তৈরি করবে।') }}</p>
+    <form method="post" enctype="multipart/form-data" class="backup-import-form">
+        <input type="hidden" name="action" value="import_package">
+        <label class="full">
+            {{ txt('Choose Soft X backup zip', 'Soft X backup zip নির্বাচন করুন') }}
+            <input type="file" name="backup_file" accept=".zip" required>
+        </label>
+        <div class="form-actions full">
+            <button type="submit" class="btn-danger" onclick="return confirm('{{ txt('Importing backup will replace this account data after creating a safety backup. Continue?', 'Import করার আগে safety backup তৈরি হবে, তারপর এই account-এর data replace হবে। চালিয়ে যাবেন?') }}');">
+                <i class="fa-solid fa-rotate"></i>{{ txt('Import & Restore', 'ইমপোর্ট ও রিস্টোর') }}
+            </button>
+        </div>
+    </form>
+    <ul class="backup-note-list warning">
+        <li>{{ txt('Only import a backup from the same account/login id.', 'শুধু একই account/login id-এর backup import করুন।') }}</li>
+        <li>{{ txt('Wrong-account import is blocked automatically for safety.', 'ভুল account-এর backup safety কারণে automatically block হবে।') }}</li>
+        <li>{{ txt('Existing live data is protected by automatic safety backup before restore.', 'Restore-এর আগে automatic safety backup existing live data-কে সুরক্ষিত রাখবে।') }}</li>
+    </ul>
+</section>
+{% endif %}
+
+<section class="panel backup-card" id="backup-history">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Backup History', 'ব্যাকআপ হিস্ট্রি') }}</h3>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date Time', 'তারিখ সময়') }}</th>
+                    <th>{{ txt('Type', 'টাইপ') }}</th>
+                    <th>{{ txt('File', 'ফাইল') }}</th>
+                    <th>{{ txt('Size (KB)', 'সাইজ (KB)') }}</th>
+                    <th>{{ txt('Trigger', 'ট্রিগার') }}</th>
+                    <th>{{ txt('Cloud', 'ক্লাউড') }}</th>
+                    <th>{{ txt('Action', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in logs %}
+                {% set is_package = row.filename.lower().endswith('.zip') %}
+                <tr>
+                    <td>{{ row.created_at }}</td>
+                    <td>
+                        {% if is_package %}
+                        <span class="badge stock">{{ txt('PACKAGE', 'প্যাকেজ') }}</span>
+                        {% else %}
+                        <span class="badge sold">{{ txt('DB COPY', 'DB কপি') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.filename }}</td>
+                    <td>{{ (row.file_size / 1024)|round(1) }}</td>
+                    <td>{{ row.trigger_type }}</td>
+                    <td>
+                        {{ row.google_status }}
+                        {% if row.google_file_id %}<small>{{ row.google_file_id }}</small>{% endif %}
+                    </td>
+                    <td>
+                        <div class="backup-action-group">
+                            <a class="link-btn" href="{{ url_for('download_backup', filename=row.filename) }}"><i class="fa-solid fa-download"></i>{{ txt('Download', 'ডাউনলোড') }}</a>
+                            {% if is_package %}
+                            <button
+                                type="button"
+                                class="btn-secondary backup-share-btn"
+                                data-download-url="{{ url_for('download_backup', filename=row.filename) }}"
+                                data-backup-filename="{{ row.filename }}"
+                            >
+                                <i class="fa-solid fa-share-nodes"></i>{{ txt('Share', 'শেয়ার') }}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">{{ txt('No backup history yet.', 'এখনও কোনো backup history নেই।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const buttons = document.querySelectorAll('.backup-share-btn');
+    const frequencySelect = document.getElementById('backupScheduleFrequency');
+    const weeklyWrap = document.querySelector('.backup-weekly-wrap');
+    const monthlyWrap = document.querySelector('.backup-monthly-wrap');
+
+    function syncScheduleFields() {
+        if (!frequencySelect) return;
+        const frequency = String(frequencySelect.value || '').toUpperCase();
+        if (weeklyWrap) {
+            weeklyWrap.classList.toggle('is-hidden', frequency !== 'WEEKLY');
+        }
+        if (monthlyWrap) {
+            monthlyWrap.classList.toggle('is-hidden', frequency !== 'MONTHLY');
+        }
+    }
+
+    if (frequencySelect) {
+        frequencySelect.addEventListener('change', syncScheduleFields);
+        syncScheduleFields();
+    }
+
+    if (!buttons.length) return;
+
+    async function shareBackup(downloadUrl, filename) {
+        if (!downloadUrl) return;
+        if (!navigator.share) {
+            window.location.href = downloadUrl;
+            return;
+        }
+        try {
+            const response = await fetch(downloadUrl, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('download failed');
+            const blob = await response.blob();
+            const finalType = blob.type || 'application/zip';
+            const file = new File([blob], filename || 'softx-backup.zip', { type: finalType });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: 'Soft X Backup',
+                    text: 'Soft X backup package',
+                    files: [file],
+                });
+                return;
+            }
+            await navigator.share({
+                title: 'Soft X Backup',
+                text: 'Soft X backup download link',
+                url: new URL(downloadUrl, window.location.origin).toString(),
+            });
+        } catch (error) {
+            window.location.href = downloadUrl;
+        }
+    }
+
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+            shareBackup(button.dataset.downloadUrl || '', button.dataset.backupFilename || 'softx-backup.zip');
+        });
+    });
+})();
+</script>
+{% endblock %}

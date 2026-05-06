@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Daily Closing Report', 'দৈনিক ক্লোজিং রিপোর্ট') }} | Soft X{% endblock %}
+{% block content %}
+{% set kpis = report_data.get('kpis', {}) %}
+<section class="panel daily-report-header no-print">
+    <div class="panel-head daily-report-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-book"></i>{{ txt('Daily Closing Report', 'দৈনিক ক্লোজিং রিপোর্ট') }}</h3>
+            <p class="muted-text">{{ txt('Khata-style one-page daily হিসাব: stock, sale, due, expense, profit, cashflow.', 'খাতা-স্টাইল এক পাতায় daily হিসাব: stock, sale, due, expense, profit, cashflow।') }}</p>
+        </div>
+        <div class="toolbar daily-report-actions">
+            <a class="link-btn" href="{{ url_for('daily_report_export_csv', report_date=report_date, snapshot_id=(active_snapshot.id if active_snapshot else '')) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV এক্সপোর্ট') }}</a>
+        </div>
+    </div>
+
+    <form method="get" class="daily-filter-grid">
+        <label>
+            {{ txt('Report Date', 'রিপোর্ট তারিখ') }}
+            <input type="date" name="report_date" value="{{ report_date }}">
+        </label>
+        <label>
+            {{ txt('Open Snapshot', 'সেভকৃত রিপোর্ট খুলুন') }}
+            <select name="snapshot_id">
+                <option value="">{{ txt('Live Data', 'লাইভ ডাটা') }}</option>
+                {% for snap in snapshots_today %}
+                <option value="{{ snap.id }}" {% if active_snapshot and active_snapshot.id == snap.id %}selected{% endif %}>
+                    {{ snap.report_no }} | {{ snap.status }} | {{ snap.created_at[:16] }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="daily-filter-actions">
+            <button type="submit"><i class="fa-solid fa-filter"></i>{{ txt('Load', 'লোড') }}</button>
+            <a class="stock-reset-btn" href="{{ url_for('daily_report') }}"><i class="fa-solid fa-rotate-right"></i>{{ txt('Today', 'আজ') }}</a>
+        </div>
+    </form>
+
+    <form method="post" class="daily-save-grid">
+        <input type="hidden" name="action" value="save_snapshot">
+        <input type="hidden" name="report_date" value="{{ report_date }}">
+        <label>
+            {{ txt('Closing Note', 'ক্লোজিং নোট') }}
+            <input type="text" name="note" placeholder="{{ txt('Example: cash matched, 2 due pending for tomorrow collection', 'উদাহরণ: cash মিলে গেছে, ২টি due আগামীকাল collect হবে') }}">
+        </label>
+        <label>
+            {{ txt('Snapshot Status', 'স্ন্যাপশট স্ট্যাটাস') }}
+            <select name="status">
+                <option value="DRAFT">DRAFT</option>
+                <option value="FINAL" {% if not is_admin_user %}disabled{% endif %}>FINAL{% if not is_admin_user %} (Admin){% endif %}</option>
+            </select>
+        </label>
+        <div class="daily-filter-actions">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Snapshot', 'রিপোর্ট সেভ') }}</button>
+        </div>
+    </form>
+
+    {% if active_snapshot %}
+    <p class="muted-text">
+        <span class="badge stock">{{ txt('Snapshot Mode', 'স্ন্যাপশট মোড') }}</span>
+        {{ active_snapshot.report_no }} | {{ active_snapshot.status }} | {{ active_snapshot.created_at }}
+        {% if active_snapshot.note %}| {{ active_snapshot.note }}{% endif %}
+    </p>
+    {% endif %}
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#daily-snapshot-tools" class="module-focus-card">
+        <i class="fa-solid fa-floppy-disk"></i>
+        <strong>{{ txt('Snapshot', 'স্ন্যাপশট') }}</strong>
+        <span>{{ txt('Load or save report', 'রিপোর্ট লোড/সেভ') }}</span>
+    </a>
+    <a href="#daily-guard-score" class="module-focus-card">
+        <i class="fa-solid fa-shield-halved"></i>
+        <strong>{{ txt('Guard Score', 'গার্ড স্কোর') }}</strong>
+        <span>{{ txt('See business health', 'বিজনেস হেলথ দেখুন') }}</span>
+    </a>
+    <a href="#daily-khata-ledger" class="module-focus-card">
+        <i class="fa-solid fa-book-open"></i>
+        <strong>{{ txt('Khata Ledger', 'খাতা লেজার') }}</strong>
+        <span>{{ txt('One page closing view', 'এক পাতার হিসাব') }}</span>
+    </a>
+    <a href="#daily-trans-az" class="module-focus-card">
+        <i class="fa-solid fa-list-check"></i>
+        <strong>{{ txt('A to Z', 'A to Z') }}</strong>
+        <span>{{ txt('See all transactions', 'সব ট্রানজেকশন দেখুন') }}</span>
+    </a>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div id="daily-snapshot-tools" hidden></div>
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-book"></i>{{ txt('Daily Report Tools', 'ডেইলি রিপোর্ট টুলস') }}</h4>
+        <p>{{ txt('Daily report export and print are kept here for a cleaner closing dashboard.', 'clean closing dashboard-এর জন্য daily report export ও print এখানে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <a class="link-btn" href="{{ url_for('daily_report_export_csv', report_date=report_date, snapshot_id=(active_snapshot.id if active_snapshot else '')) }}"><i class="fa-solid fa-file-csv"></i>{{ txt('Export CSV', 'CSV এক্সপোর্ট') }}</a>
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print / Save PDF', 'প্রিন্ট / PDF সেভ') }}</button>
+    </div>
+</section>
+
+<section class="panel" id="daily-guard-score">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-shield-halved"></i>{{ txt('Business Guard Score', 'বিজনেস গার্ড স্কোর') }}</h3>
+        <span class="badge {% if health_data.score >= 85 %}stock{% elif health_data.score >= 70 %}paid{% else %}due{% endif %}">{{ health_data.score }}/100 ({{ health_data.grade }})</span>
+    </div>
+    <div class="daily-guard-progress" aria-hidden="true">
+        <span style="width: {{ health_data.score }}%"></span>
+    </div>
+    <div class="daily-guard-grid top-gap">
+        {% for item in health_data.signals %}
+        <article class="daily-guard-item level-{{ item.level }}">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.message }}</p>
+        </article>
+        {% else %}
+        <p class="muted-text">{{ txt('No signal yet.', 'এখনও কোনো সিগনাল নেই।') }}</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel print-only daily-print-head">
+    <h3 class="section-title"><i class="fa-solid fa-file-invoice"></i>{{ txt('Soft X Daily Closing Sheet', 'Soft X দৈনিক ক্লোজিং শিট') }}</h3>
+    <p class="muted-text">{{ txt('Date', 'তারিখ') }}: {{ report_data.get('report_date', report_date) }}</p>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-boxes-stacked"></i>{{ txt('Opening Stock', 'শুরুর স্টক') }}</span>
+        <h2>{{ kpis.get('opening_stock_units', 0)|int }}</h2>
+        <small>{{ txt('Cost', 'কস্ট') }}: {{ kpis.get('opening_stock_cost', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-arrow-down-wide-short"></i>{{ txt('Product In Today', 'আজ প্রোডাক্ট ইন') }}</span>
+        <h2>{{ kpis.get('stock_in_units', 0)|int }}</h2>
+        <small>{{ txt('Cost', 'কস্ট') }}: {{ kpis.get('stock_in_cost', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-cart-shopping"></i>{{ txt('Sales Units', 'আজ বিক্রি ইউনিট') }}</span>
+        <h2>{{ kpis.get('sales_units', 0)|int }}</h2>
+        <small>W: {{ kpis.get('wholesale_units', 0)|int }} | R: {{ kpis.get('retail_units', 0)|int }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ txt('Sales Revenue', 'আজকের রেভিনিউ') }}</span>
+        <h2>{{ kpis.get('sales_revenue', 0)|money }}</h2>
+        <small>W: {{ kpis.get('wholesale_revenue', 0)|money }} | R: {{ kpis.get('retail_revenue', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Due Today', 'আজ তৈরি বাকি') }}</span>
+        <h2>{{ kpis.get('due_generated', 0)|money }}</h2>
+        <small>{{ txt('Collected', 'আজ আদায়') }}: {{ kpis.get('due_collected_total', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-arrow-rotate-left"></i>{{ txt('Returns', 'আজ রিটার্ন') }}</span>
+        <h2>{{ kpis.get('return_units', 0)|int }}</h2>
+        <small>{{ txt('Return Loss', 'রিটার্ন লস') }}: {{ kpis.get('return_loss', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-wallet"></i>{{ txt('Approved Expense', 'অনুমোদিত খরচ') }}</span>
+        <h2>{{ kpis.get('expense_approved', 0)|money }}</h2>
+        <small>{{ txt('Pending', 'Pending') }}: {{ kpis.get('expense_pending', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-chart-line"></i>{{ txt('Gross / Net Profit', 'গ্রস / নেট প্রফিট') }}</span>
+        <h2>{{ kpis.get('net_profit', 0)|money }}</h2>
+        <small>{{ txt('Gross', 'গ্রস') }}: {{ kpis.get('gross_profit', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-cash-register"></i>{{ txt('Net Cashflow', 'নেট ক্যাশফ্লো') }}</span>
+        <h2>{{ kpis.get('net_cashflow', 0)|money }}</h2>
+        <small>{{ txt('In', 'ইন') }}: {{ kpis.get('cash_inflow', 0)|money }} | {{ txt('Out', 'আউট') }}: {{ kpis.get('cash_outflow', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-exclamation-triangle"></i>{{ txt('Outstanding Due', 'মোট বাকি বকেয়া') }}</span>
+        <h2>{{ kpis.get('closing_due_outstanding', 0)|money }}</h2>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-warehouse"></i>{{ txt('Closing Stock', 'দিন শেষে স্টক') }}</span>
+        <h2>{{ kpis.get('closing_stock_units', 0)|int }}</h2>
+        <small>{{ txt('Cost', 'কস্ট') }}: {{ kpis.get('closing_stock_cost', 0)|money }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-scale-balanced"></i>{{ txt('Cash Difference', 'ক্যাশ অমিল') }}</span>
+        <h2>{{ kpis.get('shortage_overage', 0)|money }}</h2>
+        <small>{{ txt('Expected Close', 'প্রত্যাশিত ক্লোজিং') }}: {{ kpis.get('expected_closing_cash', 0)|money }}</small>
+    </article>
+</section>
+
+<section class="split">
+    <article class="panel daily-khata-panel" id="daily-khata-ledger">
+        <h3 class="section-title"><i class="fa-solid fa-book-open"></i>{{ txt('Khata Style Closing Ledger', 'খাতা স্টাইল ক্লোজিং লেজার') }}</h3>
+        <div class="table-wrap">
+            <table class="daily-ledger-table">
+                <thead>
+                    <tr>
+                        <th>{{ txt('Particular', 'বিবরণ') }}</th>
+                        <th>{{ txt('Amount / Units', 'টাকা / ইউনিট') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>{{ txt('Opening Stock Units', 'শুরুর স্টক ইউনিট') }}</td><td>{{ kpis.get('opening_stock_units', 0)|int }}</td></tr>
+                    <tr><td>{{ txt('Stock-In Units (Today)', 'আজ স্টকে যোগ') }}</td><td>{{ kpis.get('stock_in_units', 0)|int }}</td></tr>
+                    <tr><td>{{ txt('Sales Units (Today)', 'আজ বিক্রি ইউনিট') }}</td><td>{{ kpis.get('sales_units', 0)|int }}</td></tr>
+                    <tr><td>{{ txt('Return Units (Today)', 'আজ রিটার্ন ইউনিট') }}</td><td>{{ kpis.get('return_units', 0)|int }}</td></tr>
+                    <tr><td>{{ txt('Sales Revenue', 'আজ সেলস রেভিনিউ') }}</td><td>{{ kpis.get('sales_revenue', 0)|money }}</td></tr>
+                    <tr><td>{{ txt('Due Created', 'আজ নতুন বাকি') }}</td><td>{{ kpis.get('due_generated', 0)|money }}</td></tr>
+                    <tr><td>{{ txt('Due Collected', 'আজ বাকি আদায়') }}</td><td>{{ kpis.get('due_collected_total', 0)|money }}</td></tr>
+                    <tr><td>{{ txt('Approved Expense', 'অনুমোদিত খরচ') }}</td><td>{{ kpis.get('expense_approved', 0)|money }}</td></tr>
+                    <tr><td>{{ txt('Return Loss', 'রিটার্ন লস') }}</td><td>{{ kpis.get('return_loss', 0)|money }}</td></tr>
+                    <tr><td><strong>{{ txt('Net Profit', 'নেট প্রফিট') }}</strong></td><td><strong>{{ kpis.get('net_profit', 0)|money }}</strong></td></tr>
+                    <tr><td>{{ txt('Net Cashflow', 'নেট ক্যাশফ্লো') }}</td><td>{{ kpis.get('net_cashflow', 0)|money }}</td></tr>
+                    <tr><td>{{ txt('Outstanding Due (Closing)', 'দিন শেষে মোট বাকি') }}</td><td>{{ kpis.get('closing_due_outstanding', 0)|money }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <h3 class="section-title"><i class="fa-solid fa-triangle-exclamation"></i>{{ txt('Risk Highlights', 'রিস্ক হাইলাইটস') }}</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ txt('Top Due Shops', 'বেশি বাকি শপ') }}</th>
+                        <th>{{ txt('Amount', 'টাকা') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report_data.get('top_due_shops', []) %}
+                    <tr>
+                        <td>{{ row.shop_name }}</td>
+                        <td>{{ row.due_amount|money }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2">{{ txt('No high due risk found.', 'উচ্চ বাকি ঝুঁকি পাওয়া যায়নি।') }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h4 class="section-title top-gap"><i class="fa-solid fa-rotate-left"></i>{{ txt('High Return Models (30 days)', 'উচ্চ রিটার্ন মডেল (৩০ দিন)') }}</h4>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ txt('Model', 'মডেল') }}</th>
+                        <th>{{ txt('Returns', 'রিটার্ন') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report_data.get('high_return_models', []) %}
+                    <tr>
+                        <td>{{ row.brand }} {{ row.model }}{% if row.storage %}<small>{{ row.storage }}</small>{% endif %}</td>
+                        <td>{{ row.return_count }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2">{{ txt('No return-risk model found.', 'রিটার্ন ঝুঁকির মডেল পাওয়া যায়নি।') }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<section class="panel" id="daily-trans-az">
+    <h3 class="section-title"><i class="fa-solid fa-list-check"></i>{{ txt('Daily Transaction A to Z', 'দৈনিক ট্রানজেকশন A to Z') }}</h3>
+    <div class="daily-trans-grid">
+        <article>
+            <h4>{{ txt('Product In', 'প্রোডাক্ট ইন') }} ({{ report_data.get('stock_in_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>IMEI</th><th>{{ txt('Product', 'প্রোডাক্ট') }}</th><th>{{ txt('Cost', 'কস্ট') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('stock_in_rows', []) %}
+                        <tr><td><code>{{ row.imei }}</code></td><td>{{ row.brand }} {{ row.model }}</td><td>{{ row.purchase_price|money }}</td></tr>
+                        {% else %}<tr><td colspan="3">{{ txt('No entry', 'কোনো এন্ট্রি নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article>
+            <h4>{{ txt('Wholesale Sales', 'হোলসেল সেল') }} ({{ report_data.get('wholesale_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>IMEI</th><th>{{ txt('Shop', 'শপ') }}</th><th>{{ txt('Sold', 'সেল') }}</th><th>{{ txt('Due', 'বাকি') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('wholesale_rows', []) %}
+                        <tr><td><code>{{ row.imei }}</code></td><td>{{ row.party_name or '-' }}</td><td>{{ row.sold_price|money }}</td><td>{{ row.due_amount|money }}</td></tr>
+                        {% else %}<tr><td colspan="4">{{ txt('No wholesale sale', 'হোলসেল সেল নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article>
+            <h4>{{ txt('Retail Sales', 'রিটেইল সেল') }} ({{ report_data.get('retail_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>IMEI</th><th>{{ txt('Customer', 'কাস্টমার') }}</th><th>{{ txt('Sold', 'সেল') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('retail_rows', []) %}
+                        <tr><td><code>{{ row.imei }}</code></td><td>{{ row.party_name or '-' }}</td><td>{{ row.sold_price|money }}</td></tr>
+                        {% else %}<tr><td colspan="3">{{ txt('No retail sale', 'রিটেইল সেল নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article>
+            <h4>{{ txt('Returns', 'রিটার্ন') }} ({{ report_data.get('return_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>IMEI</th><th>{{ txt('Party', 'পার্টি') }}</th><th>{{ txt('Reason', 'কারণ') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('return_rows', []) %}
+                        <tr><td><code>{{ row.imei }}</code></td><td>{{ row.party_name or '-' }}</td><td>{{ row.reason or '-' }}</td></tr>
+                        {% else %}<tr><td colspan="3">{{ txt('No return', 'রিটার্ন নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article>
+            <h4>{{ txt('Due Collections', 'বাকি আদায়') }} ({{ report_data.get('due_collection_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>{{ txt('Shop', 'শপ') }}</th><th>{{ txt('Method', 'পদ্ধতি') }}</th><th>{{ txt('Amount', 'টাকা') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('due_collection_rows', []) %}
+                        <tr><td>{{ row.shop_name or '-' }}</td><td>{{ row.method }}</td><td>{{ row.amount|money }}</td></tr>
+                        {% else %}<tr><td colspan="3">{{ txt('No due collection', 'বাকি আদায় নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article>
+            <h4>{{ txt('Expense Lines', 'খরচের লাইন') }} ({{ report_data.get('expense_rows', [])|length }})</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>{{ txt('Category', 'ক্যাটাগরি') }}</th><th>{{ txt('Status', 'স্ট্যাটাস') }}</th><th>{{ txt('Amount', 'টাকা') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in report_data.get('expense_rows', []) %}
+                        <tr><td>{{ row.category }}{% if row.sub_category %}<small>{{ row.sub_category }}</small>{% endif %}</td><td>{{ row.approval_status }}</td><td>{{ row.amount|money }}</td></tr>
+                        {% else %}<tr><td colspan="3">{{ txt('No expense', 'খরচ নেই') }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="panel no-print">
+    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Recent Saved Snapshots', 'সাম্প্রতিক সেভকৃত রিপোর্ট') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Report No', 'রিপোর্ট নং') }}</th>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Saved By', 'সেভ করেছে') }}</th>
+                    <th>{{ txt('Action', 'অ্যাকশন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for snap in snapshots_recent %}
+                <tr>
+                    <td>{{ snap.report_no }}</td>
+                    <td>{{ snap.report_date }}</td>
+                    <td>{{ snap.status }}</td>
+                    <td>{{ snap.created_by_username or '-' }}</td>
+                    <td><a class="link-btn" href="{{ url_for('daily_report', report_date=snap.report_date, snapshot_id=snap.id) }}"><i class="fa-solid fa-eye"></i>{{ txt('Open', 'খুলুন') }}</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">{{ txt('No snapshot saved yet.', 'এখনও কোনো স্ন্যাপশট সেভ হয়নি।') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

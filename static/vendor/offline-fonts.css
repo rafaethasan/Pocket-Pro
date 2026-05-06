@@ -1,0 +1,5 @@
+/* Offline font fallback for desktop/local mode. */
+html,
+body {
+    font-family: "Segoe UI", "Noto Sans Bengali", "Arial", sans-serif;
+}

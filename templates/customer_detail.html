@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Wholesale Shop Detail', 'হোলসেল শপ ডিটেইল') }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-store"></i>{{ customer.shop_name }} - {{ txt('Wholesale Ledger', 'হোলসেল লেজার') }}</h3>
+        <div class="toolbar">
+            <a class="link-btn" href="{{ url_for('customers') }}"><i class="fa-solid fa-arrow-left"></i>{{ txt('Back to Wholesale Shops', 'হোলসেল শপ লিস্টে ফিরুন') }}</a>
+            <form method="get" action="{{ url_for('customer_day_invoice', customer_id=customer.id) }}" class="inline-form">
+                <input type="date" name="sale_date" value="{{ today }}">
+                <button type="submit" class="btn-secondary"><i class="fa-solid fa-receipt"></i>{{ txt('Day Invoice', 'ডে ইনভয়েস') }}</button>
+            </form>
+        </div>
+    </div>
+    <p>
+        <strong>{{ txt('Owner', 'মালিক') }}:</strong> {{ customer.owner_name or "-" }}
+        |
+        <strong>{{ txt('Phone', 'ফোন') }}:</strong> {{ customer.phone or "-" }}
+        |
+        <strong>{{ txt('Area', 'এরিয়া') }}:</strong> {{ customer.area or "-" }}
+    </p>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-store"></i>{{ txt('Wholesale Ledger Tools', 'হোলসেল লেজার টুলস') }}</h4>
+        <p>{{ txt('Ledger actions stay below so the account summary area stays cleaner.', 'summary area clean রাখতে ledger action নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Ledger', 'লেজার প্রিন্ট') }}</button>
+        <a class="link-btn" href="{{ url_for('customer_day_invoice', customer_id=customer.id, sale_date=today) }}"><i class="fa-solid fa-receipt"></i>{{ txt('Open Today Invoice', 'আজকের ইনভয়েস খুলুন') }}</a>
+    </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-calendar-day"></i>{{ txt('Today Profit', 'আজকের প্রফিট') }}</span>
+        <h2>{{ period_stats.today.profit|money }}</h2>
+        <small>{{ txt('Revenue', 'রেভিনিউ') }}: {{ period_stats.today.revenue|money }} | {{ txt('Units', 'ইউনিট') }}: {{ period_stats.today.units }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-calendar-days"></i>{{ txt('Monthly Profit', 'মাসিক প্রফিট') }}</span>
+        <h2>{{ period_stats.month.profit|money }}</h2>
+        <small>{{ txt('Revenue', 'রেভিনিউ') }}: {{ period_stats.month.revenue|money }} | {{ txt('Units', 'ইউনিট') }}: {{ period_stats.month.units }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-calendar-check"></i>{{ txt('Yearly Profit', 'বার্ষিক প্রফিট') }}</span>
+        <h2>{{ period_stats.year.profit|money }}</h2>
+        <small>{{ txt('Revenue', 'রেভিনিউ') }}: {{ period_stats.year.revenue|money }} | {{ txt('Units', 'ইউনিট') }}: {{ period_stats.year.units }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-infinity"></i>{{ txt('Lifetime Profit', 'লাইফটাইম প্রফিট') }}</span>
+        <h2>{{ period_stats.lifetime.profit|money }}</h2>
+        <small>{{ txt('Revenue', 'রেভিনিউ') }}: {{ period_stats.lifetime.revenue|money }} | {{ txt('Units', 'ইউনিট') }}: {{ period_stats.lifetime.units }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Outstanding Due', 'মোট বাকি') }}</span>
+        <h2>{{ outstanding_due|money }}</h2>
+        <small>{{ txt('From active sales only', 'শুধু active sale থেকে') }}</small>
+    </article>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-bolt"></i>{{ txt('Quick Sale To This Shop', 'এই হোলসেল শপে দ্রুত সেল') }} ({{ tracking_code_label }} Bulk)</h3>
+    <p class="muted-text">{{ txt('Paste many tracking codes for quick sale. Each valid in-stock code will be sold automatically.', 'দ্রুত sale-এর জন্য একাধিক tracking code paste করুন। stock-এ থাকলে auto sale হবে।') }}</p>
+    <form method="post" action="{{ url_for('customer_quick_sale', customer_id=customer.id) }}" enctype="multipart/form-data" class="form-grid">
+        <label class="span-2">
+            {{ tracking_code_label }} {{ txt('List', 'লিস্ট') }} *
+            <textarea name="imei_bulk" rows="4" required placeholder="{{ tracking_code_sample }}&#10;{{ tracking_code_sample }}2"></textarea>
+        </label>
+        <label>
+            {{ txt('Sale Type', 'সেল টাইপ') }}
+            <select name="sale_type">
+                <option value="WHOLESALE">WHOLESALE</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Payment', 'পেমেন্ট') }}
+            <select name="payment_status">
+                <option value="PAID">PAID</option>
+                <option value="DUE">DUE</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Sold Date', 'সেল তারিখ') }}
+            <input type="date" name="sold_at" value="{{ today }}">
+        </label>
+        <label>
+            {{ txt('Invoice No', 'ইনভয়েস নং') }}
+            <input type="text" name="invoice_no" placeholder="{{ txt('Leave empty = auto invoice', 'ফাঁকা রাখুন = auto invoice') }}">
+        </label>
+        <label>
+            {{ txt('One Price For All (Optional)', 'সবগুলোর একই দাম (Optional)') }}
+            <input type="number" name="sold_price" step="0.01" min="0" placeholder="empty = default">
+        </label>
+        <label>
+            {{ txt('Paid Now For Each (Optional)', 'প্রতি ইউনিট Paid amount (Optional)') }}
+            <input type="number" name="paid_amount" step="0.01" min="0" placeholder="empty = auto">
+        </label>
+        <label>
+            {{ txt('Receiver Name', 'গ্রহণকারীর নাম') }}
+            <input type="text" name="receiver_name" placeholder="কে নিল">
+        </label>
+        <label>
+            {{ txt('Receiver Phone', 'গ্রহণকারীর ফোন') }}
+            <input type="text" name="receiver_phone" placeholder="01XXXXXXXXX">
+        </label>
+        <label class="span-2">
+            {{ txt('Receiver Photo (Optional)', 'গ্রহণকারীর ছবি (Optional)') }}
+            <input type="file" id="quickSaleReceiverPhotoInput" name="receiver_photo" accept="image/*" capture="environment">
+            <div class="receiver-photo-preview" id="quickSaleReceiverPhotoPreview" hidden>
+                <img id="quickSaleReceiverPhotoImg" alt="Receiver preview">
+                <div class="receiver-photo-preview-actions">
+                    <a id="quickSaleReceiverPhotoSaveCopy" class="link-btn" download="receiver-photo.jpg"><i class="fa-solid fa-download"></i>{{ txt('Save Copy', 'কপি সেভ') }}</a>
+                </div>
+            </div>
+            <small class="muted-text">{{ txt('Photo is private: only shop admin can view, and it will not be printed.', 'ছবি প্রাইভেট: শুধু shop admin দেখবে, প্রিন্টে যাবে না।') }}</small>
+        </label>
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="note" placeholder="Optional">
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-circle-check"></i>{{ txt('Quick Sell Code List', 'Code List Quick Sell') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel" id="dueCollectionCard">
+    <h3 class="section-title"><i class="fa-solid fa-hand-holding-dollar"></i>{{ txt('Due Collection', 'বাকি সংগ্রহ') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Sold', 'সেল') }}</th>
+                    <th>{{ txt('Paid', 'পেইড') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Collect Now', 'এখন কালেক্ট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in due_sales %}
+                <tr>
+                    <td>{{ d.sold_at }}</td>
+                    <td>{{ d.imei }}</td>
+                    <td>{{ d.sold_price|money }}</td>
+                    <td>{{ d.paid_amount|money }}</td>
+                    <td><strong>{{ d.due_amount|money }}</strong></td>
+                    <td>
+                        <form method="post" action="{{ url_for('sale_collect_due', sale_id=d.id) }}" class="inline-form">
+                            <input type="hidden" name="collected_at" value="{{ today }}">
+                            <input type="hidden" name="method" value="CASH">
+                            <input type="hidden" name="redirect_to" value="customer_detail">
+                            <input type="number" name="amount" min="0.01" step="0.01" max="{{ d.due_amount }}" required placeholder="amount">
+                            <button type="submit"><i class="fa-solid fa-check"></i>{{ txt('Save', 'সেভ') }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">{{ txt('No outstanding due in this wholesale shop', 'এই হোলসেল শপের কোনো বাকি নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Collection History', 'কালেকশন হিস্ট্রি') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Amount', 'টাকা') }}</th>
+                    <th>{{ txt('Method', 'পদ্ধতি') }}</th>
+                    <th>{{ txt('Note', 'নোট') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in collection_history %}
+                <tr>
+                    <td>{{ row.collected_at }}</td>
+                    <td>{{ row.imei or '-' }}</td>
+                    <td>{{ row.amount|money }}</td>
+                    <td>{{ row.method }}</td>
+                    <td>{{ row.note or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">{{ txt('No collection history yet', 'এখনও কোনো collection history নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Sales History', 'সেলস হিস্ট্রি') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ tracking_code_label }}</th>
+                    <th>{{ txt('Product', 'প্রোডাক্ট') }}</th>
+                    <th>{{ txt('Type', 'টাইপ') }}</th>
+                    <th>{{ txt('Sold', 'সেল') }}</th>
+                    <th>{{ txt('Paid', 'পেইড') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Profit', 'প্রফিট') }}</th>
+                    <th>{{ txt('Payment', 'পেমেন্ট') }}</th>
+                    <th>{{ txt('Receiver', 'গ্রহণকারী') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Return Date', 'রিটার্ন তারিখ') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td>{{ s.sold_at }}</td>
+                    <td>{{ s.imei }}</td>
+                    <td>{{ s.brand }} {{ s.model }}</td>
+                    <td>{{ s.sale_type }}</td>
+                    <td>{{ s.sold_price|money }}</td>
+                    <td>{{ s.paid_amount|money }}</td>
+                    <td>{{ s.due_amount|money }}</td>
+                    <td>{% if s.is_active == 1 %}{{ s.profit|money }}{% else %}0.00{% endif %}</td>
+                    <td>{{ s.payment_status }}</td>
+                    <td>
+                        {{ s.receiver_name or '-' }}
+                        {% if s.receiver_phone %}<small>{{ s.receiver_phone }}</small>{% endif %}
+                        {% if can_view_receiver_photo and s.receiver_photo_path %}
+                            <small class="no-print"><a class="link-btn" href="{{ url_for('sale_receiver_photo', sale_id=s.id) }}" target="_blank"><i class="fa-solid fa-image"></i>{{ txt('Photo', 'ছবি') }}</a></small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.is_active == 1 %}
+                            <span class="badge paid">ACTIVE</span>
+                        {% else %}
+                            <span class="badge due">RETURNED</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.return_date or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="12">{{ txt('No history found', 'কোনো history নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const quickSaleReceiverPhotoInput = document.getElementById("quickSaleReceiverPhotoInput");
+const quickSaleReceiverPhotoPreview = document.getElementById("quickSaleReceiverPhotoPreview");
+const quickSaleReceiverPhotoImg = document.getElementById("quickSaleReceiverPhotoImg");
+const quickSaleReceiverPhotoSaveCopy = document.getElementById("quickSaleReceiverPhotoSaveCopy");
+
+if (quickSaleReceiverPhotoInput && quickSaleReceiverPhotoPreview && quickSaleReceiverPhotoImg && quickSaleReceiverPhotoSaveCopy) {
+    quickSaleReceiverPhotoInput.addEventListener("change", function () {
+        const file = quickSaleReceiverPhotoInput.files && quickSaleReceiverPhotoInput.files[0];
+        if (!file) {
+            quickSaleReceiverPhotoPreview.hidden = true;
+            quickSaleReceiverPhotoImg.removeAttribute("src");
+            quickSaleReceiverPhotoSaveCopy.removeAttribute("href");
+            return;
+        }
+        const previewUrl = URL.createObjectURL(file);
+        quickSaleReceiverPhotoImg.src = previewUrl;
+        quickSaleReceiverPhotoPreview.hidden = false;
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        quickSaleReceiverPhotoSaveCopy.href = previewUrl;
+        quickSaleReceiverPhotoSaveCopy.download = `receiver-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
+    });
+}
+</script>
+{% endblock %}

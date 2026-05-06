@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Retail Customers', 'রিটেইল কাস্টমার') }} | Soft X{% endblock %}
+{% block content %}
+{% set rc = namespace(total_sales=0, total_paid=0, total_due=0, total_invoices=0) %}
+{% for customer in retail_customers %}
+    {% set rc.total_sales = rc.total_sales + (customer.sales_amount or 0) %}
+    {% set rc.total_paid = rc.total_paid + (customer.paid_amount or 0) %}
+    {% set rc.total_due = rc.total_due + (customer.due_amount or 0) %}
+    {% set rc.total_invoices = rc.total_invoices + (customer.invoice_count or 0) %}
+{% endfor %}
+<section class="panel hero-panel partner-hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('Retail Desk', 'রিটেইল ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-user-group"></i>{{ txt('Retail Customer Center', 'রিটেইল কাস্টমার সেন্টার') }}</h3>
+            <p class="muted-text">{{ txt('Keep local customer identity, due, invoice history and repeat-sale flow in one softer POS-friendly workspace.', 'লোকাল customer identity, due, invoice history ও repeat-sale flow এক POS-friendly workspace-এ রাখুন।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn-secondary" href="{{ url_for('retail_sales') }}"><i class="fa-solid fa-receipt"></i>{{ txt('Open Retail POS', 'রিটেইল POS') }}</a>
+            <a class="btn-secondary" href="{{ url_for('reports') }}"><i class="fa-solid fa-chart-column"></i>{{ txt('View Reports', 'রিপোর্ট') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#retail-customer-add" class="module-focus-card">
+        <i class="fa-solid fa-user-plus"></i>
+        <strong>{{ txt('Add Customer', 'কাস্টমার যোগ') }}</strong>
+        <span>{{ txt('Create local customer', 'নতুন লোকাল কাস্টমার') }}</span>
+    </a>
+    <a href="#retail-customer-ledger" class="module-focus-card">
+        <i class="fa-solid fa-address-card"></i>
+        <strong>{{ txt('Ledger', 'লেজার') }}</strong>
+        <span>{{ txt('Invoice and due view', 'invoice ও due view') }}</span>
+    </a>
+    <a href="{{ url_for('retail_sales') }}" class="module-focus-card">
+        <i class="fa-solid fa-receipt"></i>
+        <strong>{{ txt('Retail POS', 'রিটেইল POS') }}</strong>
+        <span>{{ txt('Open POS billing', 'POS billing খুলুন') }}</span>
+    </a>
+    <a href="{{ url_for('reports') }}" class="module-focus-card">
+        <i class="fa-solid fa-chart-column"></i>
+        <strong>{{ txt('Reports', 'রিপোর্ট') }}</strong>
+        <span>{{ txt('Check retail due', 'রিটেইল due দেখুন') }}</span>
+    </a>
+</section>
+
+<section class="metric-grid partner-summary-grid">
+    <article class="metric-card">
+        <span><i class="fa-solid fa-user-group"></i>{{ txt('Customers', 'কাস্টমার') }}</span>
+        <h2>{{ retail_customers|length }}</h2>
+        <small>{{ txt('Saved retail customer profiles', 'saved retail customer profiles') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-file-invoice"></i>{{ txt('Invoices', 'ইনভয়েস') }}</span>
+        <h2>{{ rc.total_invoices }}</h2>
+        <small>{{ txt('Retail invoices created', 'retail invoices created') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ txt('Sales', 'বিক্রয়') }}</span>
+        <h2>{{ rc.total_sales|money }}</h2>
+        <small>{{ txt('Retail sales amount', 'retail sales amount') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-money-bill-wave"></i>{{ txt('Paid', 'পরিশোধ') }}</span>
+        <h2>{{ rc.total_paid|money }}</h2>
+        <small>{{ txt('Collected from retail invoices', 'collected from retail invoices') }}</small>
+    </article>
+    <article class="metric-card">
+        <span><i class="fa-solid fa-hourglass-half"></i>{{ txt('Due', 'বাকি') }}</span>
+        <h2>{{ rc.total_due|money }}</h2>
+        <small>{{ txt('Outstanding retail due', 'outstanding retail due') }}</small>
+    </article>
+</section>
+
+<section class="panel" id="retail-customer-add">
+    <h3 class="section-title"><i class="fa-solid fa-user-plus"></i>{{ txt('Retail Customer Add', 'রিটেইল কাস্টমার যোগ করুন') }}</h3>
+    <form method="post" class="form-grid">
+        <label>
+            {{ txt('Customer Name', 'কাস্টমারের নাম') }} *
+            <input type="text" name="full_name" required placeholder="{{ txt('Walk-in customer name', 'লোকাল কাস্টমারের নাম') }}">
+        </label>
+        <label>
+            {{ txt('Phone', 'ফোন') }}
+            <input type="text" name="phone" placeholder="01XXXXXXXXX">
+        </label>
+        <label class="span-2">
+            {{ txt('Address', 'ঠিকানা') }}
+            <input type="text" name="address" placeholder="{{ txt('Customer address', 'কাস্টমারের ঠিকানা') }}">
+        </label>
+        <label>
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="note" placeholder="{{ txt('Optional note', 'অপশনাল নোট') }}">
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Retail Customer', 'রিটেইল কাস্টমার সেভ করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel" id="retail-customer-ledger">
+    <div class="panel-head">
+        <h3 class="section-title"><i class="fa-solid fa-address-card"></i>{{ txt('Retail Customer Ledger', 'রিটেইল কাস্টমার লেজার') }}</h3>
+        <span class="badge stock">{{ retail_customers|length }} {{ txt('customers', 'কাস্টমার') }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Customer', 'কাস্টমার') }}</th>
+                    <th>{{ txt('Phone', 'ফোন') }}</th>
+                    <th>{{ txt('Invoices', 'ইনভয়েস') }}</th>
+                    <th>{{ txt('Sales', 'বিক্রয়') }}</th>
+                    <th>{{ txt('Paid', 'পরিশোধ') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Last Sale', 'শেষ বিক্রয়') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in retail_customers %}
+                <tr>
+                    <td>
+                        <strong>{{ customer.full_name }}</strong>
+                        {% if customer.address %}<small>{{ customer.address }}</small>{% endif %}
+                    </td>
+                    <td>{{ customer.phone or '-' }}</td>
+                    <td>{{ customer.invoice_count }}</td>
+                    <td>{{ customer.sales_amount|money }}</td>
+                    <td>{{ customer.paid_amount|money }}</td>
+                    <td>{{ customer.due_amount|money }}</td>
+                    <td>{{ customer.last_sale_date or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">{{ txt('No retail customer yet', 'এখনও কোনো রিটেইল কাস্টমার নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel module-page-tools no-print">
+    <div class="module-page-tools-copy">
+        <h4><i class="fa-solid fa-user-group"></i>{{ txt('Retail Customer Tools', 'রিটেইল কাস্টমার টুলস') }}</h4>
+        <p>{{ txt('Extra actions stay below the ledger to keep the page more organized.', 'page-কে বেশি গুছানো রাখতে extra action নিচে রাখা হয়েছে।') }}</p>
+    </div>
+    <div class="module-page-tools-actions">
+        <button type="button" class="btn-secondary" data-print><i class="fa-solid fa-print"></i>{{ txt('Print Ledger', 'লেজার প্রিন্ট') }}</button>
+    </div>
+</section>
+{% endblock %}

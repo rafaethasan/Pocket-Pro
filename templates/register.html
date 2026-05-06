@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="{{ ui_lang|default('bn') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f8a6f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Soft X">
+    <title>{{ txt('Create Account', 'নতুন একাউন্ট তৈরি') }} | Soft X</title>
+    <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    {% if offline_mode %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/offline-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome-fallback.css') }}">
+    {% else %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260329login2') }}">
+    <style>
+    .auth-card.auth-card-pro {
+        width: min(620px, 96vw);
+        border-radius: 22px;
+        border: 1px solid #d2e4df;
+        box-shadow: 0 24px 48px rgba(10, 42, 33, 0.18);
+    }
+    .auth-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.62rem;
+    }
+    .auth-module-note {
+        margin-top: 0.56rem;
+        color: #4f6d65;
+        font-size: 0.88rem;
+    }
+    .module-switch {
+        margin-top: 0.75rem;
+    }
+    .module-checkboxes {
+        margin-top: 0.2rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .module-primary-grid {
+        margin-top: 0.2rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .module-primary-card,
+    .module-check {
+        display: grid;
+        grid-template-columns: 22px 34px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid #cfe0da;
+        border-radius: 12px;
+        padding: 0.48rem 0.56rem;
+        color: #285046;
+        background: #f7fcfa;
+        cursor: pointer;
+    }
+    .module-primary-card input,
+    .module-check input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: #1b7f65;
+    }
+    .module-primary-card .module-icon,
+    .module-check .module-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #cddfd8;
+        background: #ffffff;
+        color: #24584b;
+        font-size: 0.92rem;
+    }
+    .module-primary-card .module-copy,
+    .module-check .module-copy {
+        display: grid;
+        gap: 0.04rem;
+    }
+    .module-primary-card .module-copy strong,
+    .module-check .module-copy strong {
+        font-size: 0.85rem;
+        line-height: 1.15;
+        color: #1f4a40;
+    }
+    .module-primary-card .module-copy small,
+    .module-check .module-copy small {
+        font-size: 0.72rem;
+        line-height: 1.15;
+        color: #54756d;
+    }
+    .module-primary-card.is-selected {
+        border-color: #9bcbbd;
+        background: #e9f8f2;
+    }
+    .module-primary-card.is-selected .module-icon {
+        border-color: #9bcbbd;
+        background: #f5fffb;
+    }
+    .module-primary-card.is-disabled,
+    .module-check.is-disabled,
+    .auth-role-tile.is-disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+        pointer-events: none;
+        filter: grayscale(0.08);
+    }
+    .module-primary-card.is-disabled,
+    .module-check.is-disabled {
+        border-style: dashed;
+        background: linear-gradient(135deg, #f7fafc, #eef3f9);
+    }
+    .module-primary-card.is-disabled .module-icon,
+    .module-check.is-disabled .module-icon {
+        border-style: dashed;
+        color: #8a9db1;
+    }
+    .auth-role-tile.is-disabled {
+        border-style: dashed;
+        background: linear-gradient(135deg, #f7fafc, #eef3f9);
+    }
+    .module-soon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        margin-top: 0.2rem;
+        border-radius: 999px;
+        padding: 0.16rem 0.48rem;
+        background: #ffffff;
+        border: 1px solid #d6e1ed;
+        color: #60778e;
+        font-size: 0.64rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+    .module-theme-mobile_wholesale { background: linear-gradient(135deg, #f2fff9, #edf7ff); }
+    .module-theme-electronics { background: linear-gradient(135deg, #f1f6ff, #e9f0ff); }
+    .module-theme-grocery { background: linear-gradient(135deg, #f3fff2, #eaf8ed); }
+    .module-theme-clothing { background: linear-gradient(135deg, #f9f3ff, #f1ecff); }
+    .module-theme-medicine { background: linear-gradient(135deg, #efffff, #e8f8fb); }
+    .module-theme-cosmetics { background: linear-gradient(135deg, #fff3fa, #fdebf5); }
+    .module-theme-hardware { background: linear-gradient(135deg, #f5f7fb, #edf1f7); }
+    .module-theme-stationery { background: linear-gradient(135deg, #f2f7ff, #eaf1ff); }
+    .module-theme-restaurant { background: linear-gradient(135deg, #fff4ed, #fff0e8); }
+    .module-theme-pocket_money { background: linear-gradient(135deg, #f2fff9, #e8f7f2); }
+    .module-theme-mobile_wholesale .module-icon { color: #146758; }
+    .module-theme-electronics .module-icon { color: #1f4ea2; }
+    .module-theme-grocery .module-icon { color: #2c7c3f; }
+    .module-theme-clothing .module-icon { color: #6b43a8; }
+    .module-theme-medicine .module-icon { color: #1b7d85; }
+    .module-theme-cosmetics .module-icon { color: #a13f7a; }
+    .module-theme-hardware .module-icon { color: #465168; }
+    .module-theme-stationery .module-icon { color: #335ea8; }
+    .module-theme-restaurant .module-icon { color: #9d4a2a; }
+    .module-theme-pocket_money .module-icon { color: #146e5b; }
+    .module-track-mode {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 54px;
+        border-radius: 999px;
+        border: 1px solid #c9ddd6;
+        background: #ffffff;
+        padding: 0.16rem 0.42rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+        color: #31574d;
+    }
+    @media (max-width: 860px) {
+        .auth-grid-2,
+        .module-primary-grid,
+        .module-checkboxes {
+            grid-template-columns: 1fr;
+        }
+        .auth-card.auth-card-pro {
+            width: min(540px, 97vw);
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="auth-shell">
+        <section class="auth-card auth-card-pro">
+            <div class="auth-language">
+                <a class="top-action-link {% if ui_lang == 'bn' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.full_path) }}"><i class="fa-solid fa-language"></i>বাংলা</a>
+                <a class="top-action-link {% if ui_lang == 'en' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='en', next=request.full_path) }}"><i class="fa-solid fa-language"></i>English</a>
+            </div>
+
+            {% set profile_key = 'pocket' if module_profile == 'POCKET' else 'business' %}
+            {% set next_arg = request.args.get('next', '') %}
+
+            <h2 class="auth-title"><i class="fa-solid fa-user-plus"></i> {{ txt('Create New Account', 'নতুন একাউন্ট তৈরি করুন') }}</h2>
+            <p class="auth-subtitle">{{ txt('Pick module first. Account will login with that module flow.', 'প্রথমে মডিউল বেছে নিন। যে মডিউলে রেজিস্ট্রেশন করবেন, সেই flow-তেই login করবেন।') }}</p>
+
+            <div class="auth-role-switch-grid compact module-switch">
+                <a class="auth-role-tile role-user {% if module_profile != 'POCKET' %}active{% endif %}" href="{{ url_for('client_register', profile='business', next=next_arg) if next_arg else url_for('client_register', profile='business') }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-store"></i></span>
+                    <strong>{{ txt('Shop / Business', 'শপ / বিজনেস') }}</strong>
+                    <small>{{ txt('Wholesale, POS, Inventory', 'হোলসেল, POS, ইনভেন্টরি') }}</small>
+                </a>
+                <div class="auth-role-tile role-admin is-disabled" aria-disabled="true">
+                    <span class="role-tile-icon"><i class="fa-solid fa-wallet"></i></span>
+                    <strong>{{ txt('Personal / Pocket', 'পার্সোনাল / পকেট') }}</strong>
+                    <small>{{ txt('Pocket Money Management', 'পকেট মানি ম্যানেজমেন্ট') }}</small>
+                    <span class="module-soon-badge">{{ txt('Coming Soon', 'Coming Soon') }}</span>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <section class="alerts">
+                        {% for category, message in messages %}
+                            <div class="alert {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </section>
+                {% endif %}
+            {% endwith %}
+
+            <form method="post" class="auth-form">
+                <input type="hidden" name="module_profile" value="{{ module_profile or 'BUSINESS' }}">
+                {% if next_path %}
+                <input type="hidden" name="next" value="{{ next_path }}">
+                {% endif %}
+
+                {% if module_profile == 'POCKET' %}
+                <div class="auth-grid-2">
+                    <label class="form-stack">
+                        {{ txt('Full Name', 'Full Name') }}
+                        <input type="text" name="full_name" required placeholder="{{ txt('Your full name', 'আপনার পূর্ণ নাম') }}">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('User Name', 'User Name') }}
+                        <input type="text" name="user_name" required placeholder="{{ txt('Display user name', 'ডিসপ্লে ইউজার নাম') }}">
+                    </label>
+                </div>
+
+                <div class="auth-grid-2">
+                    <label class="form-stack">
+                        {{ txt('Login ID / Email ID', 'লগইন আইডি / ইমেইল আইডি') }}
+                        <input type="text" name="login_id" required autocomplete="username" placeholder="{{ txt('e.g. yourid or mail@mail.com', 'যেমন yourid বা mail@mail.com') }}">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('Phone', 'ফোন') }}
+                        <input type="text" name="phone" placeholder="+8801XXXXXXXXX">
+                    </label>
+                </div>
+
+                <label class="form-stack">
+                    {{ txt('UI Language', 'ইন্টারফেস ভাষা') }}
+                    <select name="ui_language" required>
+                        <option value="bn">বাংলা</option>
+                        <option value="en">English</option>
+                    </select>
+                </label>
+                {% else %}
+                <div class="auth-grid-2">
+                    <label class="form-stack">
+                        {{ txt('Shop Name', 'শপের নাম') }}
+                        <input type="text" name="shop_name" required placeholder="{{ txt('Name', 'নাম') }}">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('Owner Name', 'মালিকের নাম') }}
+                        <input type="text" name="owner_name" placeholder="{{ txt('Owner full name', 'মালিকের পূর্ণ নাম') }}">
+                    </label>
+                </div>
+
+                <div class="auth-grid-2">
+                    <label class="form-stack">
+                        {{ txt('Phone', 'ফোন') }}
+                        <input type="text" name="phone" placeholder="+8801XXXXXXXXX">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('UI Language', 'ইন্টারফেস ভাষা') }}
+                        <select name="ui_language" required>
+                            <option value="bn">বাংলা</option>
+                            <option value="en">English</option>
+                        </select>
+                    </label>
+                </div>
+                {% endif %}
+
+                {% if module_profile != 'POCKET' %}
+                <label class="form-stack">
+                    {{ txt('Primary Business Module', 'প্রাইমারি বিজনেস মডিউল') }}
+                    <div class="module-primary-grid">
+                        {% for module in business_modules %}
+                        {% set module_class = 'module-theme-' ~ (module.key|lower) %}
+                        <label class="module-primary-card {{ module_class }} {% if module.key == default_primary_business %}is-selected{% endif %} {% if module.coming_soon %}is-disabled{% endif %}">
+                            <input type="radio" name="primary_business" value="{{ module.key }}" {% if module.key == default_primary_business %}checked{% endif %} {% if module.coming_soon %}disabled{% endif %} required>
+                            <span class="module-icon"><i class="{{ module.icon }}"></i></span>
+                            <span class="module-copy">
+                                <strong>{{ module.label_en }} / {{ module.label_bn }}</strong>
+                                <small>
+                                    {{ txt(module.style_hint_en, module.style_hint_bn) }}
+                                    {% if module.coming_soon %}<span class="module-soon-badge">{{ txt('Coming Soon', 'Coming Soon') }}</span>{% endif %}
+                                </small>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </label>
+
+                <label class="form-stack">
+                    {{ txt('Enable Modules', 'সক্রিয় মডিউল') }}
+                    <div class="module-checkboxes">
+                        {% for module in business_modules %}
+                        {% set module_class = 'module-theme-' ~ (module.key|lower) %}
+                        <label class="module-check {{ module_class }} {% if module.coming_soon %}is-disabled{% endif %}">
+                            <input type="checkbox" name="enabled_modules" value="{{ module.key }}" {% if module.key == default_primary_business %}checked{% endif %} {% if module.coming_soon %}disabled{% endif %}>
+                            <span class="module-icon"><i class="{{ module.icon }}"></i></span>
+                            <span class="module-copy">
+                                <strong>{{ module.label_en }}</strong>
+                                <small>
+                                    {{ txt(module.style_hint_en, module.style_hint_bn) }}
+                                    <span class="module-track-mode">{{ module.tracking_mode }}</span>
+                                    {% if module.coming_soon %}<span class="module-soon-badge">{{ txt('Coming Soon', 'Coming Soon') }}</span>{% endif %}
+                                </small>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </label>
+                <div class="auth-module-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    {{ txt('Only Mobile Wholesale is open for public signup right now. Other modules stay marked as Coming Soon so live launch stays focused and stable.', 'এখন public signup-এর জন্য শুধু Mobile Wholesale খোলা আছে। বাকি module Coming Soon রাখা হয়েছে, যাতে live launch focused ও stable থাকে।') }}
+                </div>
+                {% else %}
+                <div class="auth-module-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    {{ txt('Pocket Money profile auto-selects Pocket Money module and monthly service fee defaults to 99 BDT.', 'Pocket Money প্রোফাইলে Pocket Money module auto-select হবে এবং মাসিক সার্ভিস fee ডিফল্ট ৯৯ টাকা।') }}
+                </div>
+                {% endif %}
+
+                {% if module_profile != 'POCKET' %}
+                <div class="auth-grid-2">
+                    <label class="form-stack">
+                        {{ txt('Login ID (username or email)', 'লগইন আইডি (username বা email)') }}
+                        <input type="text" name="username" required autocomplete="username" placeholder="{{ txt('e.g. techorigin or name@mail.com', 'যেমন techorigin বা name@mail.com') }}">
+                    </label>
+                    <label class="form-stack">
+                        {{ txt('Password', 'পাসওয়ার্ড') }}
+                        <input type="password" name="password" required autocomplete="new-password" placeholder="******">
+                    </label>
+                </div>
+                {% else %}
+                <label class="form-stack">
+                    {{ txt('Password', 'পাসওয়ার্ড') }}
+                    <input type="password" name="password" required autocomplete="new-password" placeholder="******">
+                </label>
+                {% endif %}
+
+                <label class="form-stack">
+                    {{ txt('Confirm Password', 'পাসওয়ার্ড নিশ্চিত করুন') }}
+                    <input type="password" name="confirm_password" required autocomplete="new-password" placeholder="******">
+                </label>
+
+                <button type="submit"><i class="fa-solid fa-user-check"></i>{{ txt('Create Account', 'একাউন্ট তৈরি করুন') }}</button>
+            </form>
+
+            <div class="auth-link-box-grid">
+                <a class="auth-link-box auth-link-login" href="{{ url_for('client_login', mode='admin', profile=profile_key, next=next_path) if next_path else url_for('client_login', mode='admin', profile=profile_key) }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-right-to-bracket"></i></span>
+                    <strong>{{ txt('Go To Login', 'লগইনে যান') }}</strong>
+                </a>
+                <a class="auth-link-box auth-link-register" href="{{ url_for('login_selector', profile=profile_key) }}">
+                    <span class="role-tile-icon"><i class="fa-solid fa-bars"></i></span>
+                    <strong>{{ txt('Login Options', 'লগইন অপশন') }}</strong>
+                </a>
+            </div>
+        </section>
+    </div>
+    <script src="{{ url_for('static', filename='pwa-install.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Shop Settings', 'শপ সেটিংস') }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel hero-panel">
+    <div>
+        <h3 class="section-title"><i class="fa-solid fa-sliders"></i>{{ txt('Shop Settings', 'শপ সেটিংস') }}</h3>
+        <p class="muted-text">{{ txt('Update business module, language, and profile details for your shop.', 'আপনার শপের business module, language এবং profile update করুন।') }}</p>
+    </div>
+</section>
+
+<section class="panel">
+    <form method="post" enctype="multipart/form-data" class="form-grid">
+        <input type="hidden" name="action" value="save_settings">
+        <div class="span-2 form-subtitle"><i class="fa-solid fa-building"></i>{{ txt('Business Identity', 'বিজনেস আইডেন্টিটি') }}</div>
+        <label>
+            {{ txt('Shop Name', 'শপের নাম') }} *
+            <input type="text" name="shop_name" required value="{{ account.shop_name }}">
+        </label>
+        <label>
+            {{ txt('Owner Name', 'ওনার নাম') }}
+            <input type="text" name="owner_name" value="{{ account.owner_name or '' }}">
+        </label>
+        <label>
+            {{ txt('Phone', 'ফোন') }}
+            <input type="text" name="phone" value="{{ account.phone or '' }}">
+        </label>
+        <label>
+            {{ txt('Shop Username', 'শপ ইউজারনেম') }}
+            <input type="text" value="{{ account.username }}" readonly>
+        </label>
+        <div class="span-2 profile-upload-wrap">
+            <div class="profile-upload-preview">
+                {% if account.profile_image_path %}
+                <img src="{{ url_for('tenant_profile_image', filename=account.profile_image_path) }}" alt="{{ account.shop_name }}">
+                {% else %}
+                <span><i class="fa-solid fa-shop"></i></span>
+                {% endif %}
+            </div>
+            <div class="profile-upload-fields">
+                <label>
+                    {{ txt('Profile Image', 'প্রোফাইল ছবি') }}
+                    <input type="file" name="profile_image" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <label class="inline-check">
+                    <input type="checkbox" name="remove_profile_image" value="1">
+                    <span>{{ txt('Remove current image', 'বর্তমান ছবি মুছে দিন') }}</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="span-2 form-subtitle"><i class="fa-solid fa-language"></i>{{ txt('Language & Modules', 'ভাষা ও মডিউল') }}</div>
+        <label>
+            {{ txt('UI Language', 'ইউআই ভাষা') }}
+            <select name="ui_language">
+                <option value="bn" {% if account.ui_language == 'bn' %}selected{% endif %}>Bangla</option>
+                <option value="en" {% if account.ui_language == 'en' %}selected{% endif %}>English</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Primary Business Module', 'প্রাইমারি বিজনেস মডিউল') }}
+            <select name="primary_business" required>
+                {% for module in business_modules %}
+                <option value="{{ module.key }}" {% if business_profile.primary_module == module.key %}selected{% endif %}>
+                    {{ module.label_en }} / {{ module.label_bn }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="span-2 module-group">
+            <span class="field-label">{{ txt('Enable Modules (Multi-Business)', 'Enable Modules (Multi-Business)') }}</span>
+            <div class="module-checkboxes">
+                {% for module in business_modules %}
+                <label class="inline-check module-check">
+                    <input type="checkbox" name="enabled_modules" value="{{ module.key }}" {% if module.key in business_profile.enabled_modules %}checked{% endif %}>
+                    {{ module.label_en }} / {{ module.label_bn }}
+                    <small>{{ txt('Track by', 'Track by') }}: {{ module.tracking_mode }}</small>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="span-2 form-subtitle"><i class="fa-solid fa-file-invoice-dollar"></i>{{ txt('Billing Snapshot', 'বিলিং স্ন্যাপশট') }}</div>
+        <label>
+            {{ txt('Billing Cycle', 'বিলিং সাইকেল') }}
+            <input type="text" value="{{ account.billing_cycle }}" readonly>
+        </label>
+        <label>
+            {{ txt('Monthly Fee', 'মাসিক ফি') }}
+            <input type="text" value="{{ account.monthly_fee|money }}" readonly>
+        </label>
+        <label>
+            {{ txt('Paid Until', 'পেইড আনটিল') }}
+            <input type="text" value="{{ account.paid_until or 'N/A' }}" readonly>
+        </label>
+        <label>
+            {{ txt('Created At', 'ক্রিয়েটেড অ্যাট') }}
+            <input type="text" value="{{ account.created_at }}" readonly>
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-floppy-disk"></i>{{ txt('Save Settings', 'সেটিংস সেভ করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel shop-settings-cash-tools">
+    <div class="panel-head">
+        <div>
+            <h3 class="section-title"><i class="fa-solid fa-broom"></i>{{ txt('Cash Clear Tool', 'ক্যাশ ক্লিয়ার টুল') }}</h3>
+            <p class="muted-text">{{ txt('Reset petty cash opening/closing snapshot to zero for a selected date and branch without deleting customer/business data.', 'Customer/business data delete না করে selected date ও branch-এর petty cash opening/closing zero করে দিন।') }}</p>
+        </div>
+    </div>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="clear_cash_snapshot">
+        <label>
+            {{ txt('Cash Date', 'ক্যাশ তারিখ') }}
+            <input type="date" name="cash_clear_date" value="{{ default_cash_clear_date }}">
+        </label>
+        <label>
+            {{ txt('Branch', 'ব্রাঞ্চ') }}
+            <select name="cash_clear_branch_id">
+                {% for branch in branches %}
+                <option value="{{ branch.id }}" {% if default_cash_branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="cash_clear_note" placeholder="{{ txt('Optional reason for cash reset', 'ক্যাশ reset-এর কারণ লিখুন') }}">
+        </label>
+        <div class="form-actions span-2">
+            <button
+                type="submit"
+                class="btn-danger"
+                onclick="return confirm('{{ txt('This will reset petty cash opening/closing to zero for the selected date and branch. Continue?', 'এতে selected date ও branch-এর petty cash opening/closing zero হয়ে যাবে। চালিয়ে যাবেন?') }}');"
+            >
+                <i class="fa-solid fa-broom"></i>{{ txt('Clear Cash Snapshot', 'ক্যাশ স্ন্যাপশট ক্লিয়ার') }}
+            </button>
+        </div>
+    </form>
+</section>
+
+<script>
+(function () {
+    const primarySelect = document.querySelector("select[name='primary_business']");
+    const moduleChecks = Array.from(document.querySelectorAll("input[name='enabled_modules']"));
+    if (!primarySelect || !moduleChecks.length) return;
+    function ensurePrimaryChecked() {
+        const current = primarySelect.value;
+        const match = moduleChecks.find((item) => item.value === current);
+        if (match) match.checked = true;
+    }
+    primarySelect.addEventListener("change", ensurePrimaryChecked);
+    ensurePrimaryChecked();
+})();
+</script>
+{% endblock %}

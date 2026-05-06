@@ -1,0 +1,794 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | Soft X{% endblock %}
+{% block content %}
+{% set low_stock_count = low_stock_models|length %}
+{% set top_categories = category_profit[:4] %}
+{% set mobile_view = request.args.get('mview', 'home') %}
+{% set total_customer_count = (metrics.total_wholesale_shops or 0) + (metrics.total_retail_customers or 0) %}
+{% set today_purchase_cost = (profit_cards.today.revenue or 0) - (profit_cards.today.profit or 0) %}
+{% set month_purchase_cost = (profit_cards.month.revenue or 0) - (profit_cards.month.profit or 0) %}
+{% set cat_ns = namespace(total=0.0) %}
+{% for item in top_categories %}
+    {% set cat_ns.total = cat_ns.total + (item.revenue or 0) %}
+{% endfor %}
+{% set c1 = ((top_categories[0].revenue * 100 / cat_ns.total) if top_categories|length > 0 and cat_ns.total else 0) %}
+{% set c2 = ((top_categories[1].revenue * 100 / cat_ns.total) if top_categories|length > 1 and cat_ns.total else 0) %}
+{% set c3 = ((top_categories[2].revenue * 100 / cat_ns.total) if top_categories|length > 2 and cat_ns.total else 0) %}
+{% set c4 = ((top_categories[3].revenue * 100 / cat_ns.total) if top_categories|length > 3 and cat_ns.total else 0) %}
+{% set donut_total = (profit_cards.month.revenue or 0) + (month_purchase_cost or 0) + (finance_summary.expense_month or 0) + (finance_summary.net_profit_month or 0) %}
+{% set d1 = (((profit_cards.month.revenue or 0) * 100 / donut_total) if donut_total else 0) %}
+{% set d2 = (((month_purchase_cost or 0) * 100 / donut_total) if donut_total else 0) %}
+{% set d3 = (((finance_summary.net_profit_month or 0) * 100 / donut_total) if donut_total else 0) %}
+{% set d4 = (((finance_summary.expense_month or 0) * 100 / donut_total) if donut_total else 0) %}
+{% if mobile_view != 'dashboard' %}
+<section class="mobile-native-home no-print">
+    <header class="mobile-home-clone-hero">
+        <div class="mobile-home-clone-brand">
+            <span class="mobile-home-clone-logo">
+                <img src="{{ url_for('static', filename='brand/softx-icon-source.png') }}" alt="Soft X">
+            </span>
+            <div class="mobile-home-clone-copy">
+                <h2>{{ current_tenant.shop_name if current_tenant else 'Shop Name' }}</h2>
+                <p>{{ txt('Free Plan', 'Free Plan') }}</p>
+            </div>
+        </div>
+        <a href="{{ url_for('profile_center') }}" class="mobile-home-clone-bell" aria-label="{{ txt('Profile', 'প্রোফাইল') }}">
+            <i class="fa-regular fa-bell"></i>
+        </a>
+    </header>
+
+    <div class="mobile-native-stat-grid">
+        <button type="button" class="mobile-native-stat-card tone-sale" data-detail-source="kpi-detail-home-today-sales">
+            <strong>{{ home_cards.today_sales_total|money }}</strong>
+            <small>Today Sales</small>
+        </button>
+        <button type="button" class="mobile-native-stat-card tone-stock" data-detail-source="kpi-detail-home-today-purchase">
+            <strong>{{ home_cards.today_purchase_total|money }}</strong>
+            <small>Today Purchase</small>
+        </button>
+        <button type="button" class="mobile-native-stat-card tone-due" data-detail-source="kpi-detail-home-today-due">
+            <strong>{{ home_cards.today_due_total|money }}</strong>
+            <small>Today Due</small>
+        </button>
+        <button type="button" class="mobile-native-stat-card tone-profit is-wide" data-detail-source="kpi-detail-home-today-profit">
+            <strong>{{ home_cards.today_net_profit|money }}</strong>
+            <small>Today Net Profit</small>
+        </button>
+        <button type="button" class="mobile-native-stat-card tone-expense" data-detail-source="kpi-detail-home-today-expense">
+            <strong>{{ home_cards.today_expense_total|money }}</strong>
+            <small>Today Expense</small>
+        </button>
+    </div>
+
+    <section class="mobile-native-tool-shell">
+        <div class="mobile-native-tool-grid">
+            <a href="{{ url_for('customers') if role_access.customers else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-rose">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-users"></i></span>
+                <strong>Parties</strong>
+            </a>
+            <a href="{{ url_for('sales') if role_access.sales else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-indigo">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-cart-shopping"></i></span>
+                <strong>Sales</strong>
+            </a>
+            <a href="{{ url_for('products', pview='single', pscreen='detail') if role_access.products else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-mint">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+                <strong>Purchase</strong>
+            </a>
+            <a href="{{ url_for('products', pview='menu', pscreen='menu') if role_access.products else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-peach">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-box-open"></i></span>
+                <strong>Products</strong>
+            </a>
+
+            <a href="{{ url_for('due_list', dview='due') if role_access.sales else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-violet">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                <strong>Due List</strong>
+            </a>
+            <a href="{{ url_for('sales', sview='history') if role_access.sales else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-lemon">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-scroll"></i></span>
+                <strong>Sales List</strong>
+            </a>
+            <a href="{{ url_for('products', pview='inventory', pscreen='detail') if role_access.products else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-cyan">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                <strong>Purchase List</strong>
+            </a>
+            <a href="{{ url_for('stock_report', stview='details') if role_access.stock_report else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-soft-orange">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-warehouse"></i></span>
+                <strong>Stock</strong>
+            </a>
+
+            <a href="{{ url_for('daily_report') if role_access.reports else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-green">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-book-open"></i></span>
+                <strong>Ledger</strong>
+            </a>
+            <a href="{{ url_for('reports', mscreen='detail', rview='overview') if role_access.reports else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-lilac">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-chart-column"></i></span>
+                <strong>Loss/Profit</strong>
+            </a>
+            <a href="{{ url_for('stock_report', stview='risk') if role_access.stock_report else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-salmon">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-hourglass-half"></i></span>
+                <strong>Expire Item</strong>
+            </a>
+            <a href="{{ url_for('reports', mscreen='menu') if role_access.reports else url_for('dashboard', mview='home') }}" class="mobile-native-tool-card tone-sky">
+                <span class="mobile-native-tool-icon"><i class="fa-solid fa-file-lines"></i></span>
+                <strong>Reports</strong>
+            </a>
+        </div>
+    </section>
+</section>
+
+<div id="kpi-detail-home-today-sales" class="graph-kpi-detail-source" hidden>
+    <div class="graph-detail-sheet-copy">
+        <small>{{ txt('Today Sales', 'আজকের সেল') }}</small>
+        <h3>{{ txt('Today Sales', 'আজকের সেল') }}</h3>
+        <p>{{ txt('আজ wholesale এবং retail মিলিয়ে মোট যত sales হয়েছে, তার amount এবং activity summary এখানে দেখুন।', 'Review today wholesale + retail sales amount and activity summary from one place.') }}</p>
+    </div>
+    <div class="graph-detail-stat-grid">
+        <article><span>{{ txt('Today Sales', 'আজকের সেল') }}</span><strong>{{ home_cards.today_sales_total|money }}</strong></article>
+        <article><span>{{ txt('Sold Units', 'সেল ইউনিট') }}</span><strong>{{ home_cards.today_sales_units }}</strong></article>
+        <article><span>{{ txt('Retail Bills', 'রিটেইল বিল') }}</span><strong>{{ ops_stats.today_retail_invoice_count }}</strong></article>
+        <article><span>{{ txt('Today Returns', 'আজকের রিটার্ন') }}</span><strong>{{ ops_stats.today_returns_count }}</strong></article>
+    </div>
+    <div class="graph-detail-actions">
+        {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="link-btn">{{ txt('Open Sales', 'সেল খুলুন') }}</a>{% endif %}
+        {% if role_access.reports %}<a href="{{ url_for('reports', mscreen='menu') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+    </div>
+</div>
+
+<div id="kpi-detail-home-today-purchase" class="graph-kpi-detail-source" hidden>
+    <div class="graph-detail-sheet-copy">
+        <small>{{ txt('Today Purchase', 'আজকের ক্রয়') }}</small>
+        <h3>{{ txt('Today Purchase', 'আজকের ক্রয়') }}</h3>
+        <p>{{ txt('আজ Product In দিয়ে যত stock entry হয়েছে, তার total purchase value এবং unit count এখানে দেখুন।', 'Check total purchase value and received stock unit count entered today.') }}</p>
+    </div>
+    <div class="graph-detail-stat-grid">
+        <article><span>{{ txt('Today Purchase', 'আজকের ক্রয়') }}</span><strong>{{ home_cards.today_purchase_total|money }}</strong></article>
+        <article><span>{{ txt('Received Units', 'রিসিভ ইউনিট') }}</span><strong>{{ home_cards.today_purchase_units }}</strong></article>
+        <article><span>{{ txt('In Stock', 'স্টকে') }}</span><strong>{{ metrics.in_stock }}</strong></article>
+        <article><span>{{ txt('Tracked Units', 'Tracked ইউনিট') }}</span><strong>{{ metrics.total_products }}</strong></article>
+    </div>
+    <div class="graph-detail-actions">
+        {% if role_access.products %}<a href="{{ url_for('products') }}" class="link-btn">{{ txt('Open Product In', 'প্রোডাক্ট ইন খুলুন') }}</a>{% endif %}
+        {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}" class="btn-secondary">{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</a>{% endif %}
+    </div>
+</div>
+
+<div id="kpi-detail-home-today-due" class="graph-kpi-detail-source" hidden>
+    <div class="graph-detail-sheet-copy">
+        <small>{{ txt('Today Due', 'আজকের বাকি') }}</small>
+        <h3>{{ txt('Today Due', 'আজকের বাকি') }}</h3>
+        <p>{{ txt('আজ wholesale, retail বা party যেখান থেকেই due তৈরি হোক, সব আজকের due এখানে দেখুন।', 'Review all due created today from wholesale, retail and party sales.') }}</p>
+    </div>
+    <div class="graph-detail-stat-grid">
+        <article><span>{{ txt('Today Due', 'আজকের বাকি') }}</span><strong>{{ home_cards.today_due_total|money }}</strong></article>
+        <article><span>{{ txt('Due Invoices', 'Due ইনভয়েস') }}</span><strong>{{ home_cards.today_due_count }}</strong></article>
+        <article><span>{{ txt('Collected Today', 'আজ আদায়কৃত') }}</span><strong>{{ ops_stats.today_collected_due|money }}</strong></article>
+        <article><span>{{ txt('Outstanding Due', 'মোট বাকি') }}</span><strong>{{ metrics.due_amount|money }}</strong></article>
+    </div>
+    <div class="graph-detail-actions">
+        <a href="{{ url_for('due_list') }}" class="link-btn">{{ txt('Open Due List', 'ডিউ লিস্ট খুলুন') }}</a>
+        {% if role_access.reports %}<a href="{{ url_for('reports', mscreen='menu') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+    </div>
+</div>
+
+<div id="kpi-detail-home-today-profit" class="graph-kpi-detail-source" hidden>
+    <div class="graph-detail-sheet-copy">
+        <small>{{ txt('Today Net Profit', 'আজকের নিট প্রফিট') }}</small>
+        <h3>{{ txt('Today Net Profit', 'আজকের নিট প্রফিট') }}</h3>
+        <p>{{ txt('আজকের gross profit থেকে আজকের expense এবং return pressure বাদ দিলে যে net profit থাকে সেটাই এখানে দেখানো হচ্ছে।', 'This shows today net profit after expense and return pressure.') }}</p>
+    </div>
+    <div class="graph-detail-stat-grid">
+        <article><span>{{ txt('Gross Profit', 'গ্রস প্রফিট') }}</span><strong>{{ profit_cards.today.profit|money }}</strong></article>
+        <article><span>{{ txt('Today Expense', 'আজকের খরচ') }}</span><strong>{{ home_cards.today_expense_total|money }}</strong></article>
+        <article><span>{{ txt('Return Pressure', 'রিটার্ন প্রেসার') }}</span><strong>{{ home_cards.today_return_pressure|money }}</strong></article>
+        <article><span>{{ txt('Net Profit', 'নিট প্রফিট') }}</span><strong>{{ home_cards.today_net_profit|money }}</strong></article>
+    </div>
+    <div class="graph-detail-actions">
+        {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="link-btn">{{ txt('Open Sales', 'সেল খুলুন') }}</a>{% endif %}
+        {% if role_access.reports %}<a href="{{ url_for('reports', mscreen='menu') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+    </div>
+</div>
+
+<div id="kpi-detail-home-today-expense" class="graph-kpi-detail-source" hidden>
+    <div class="graph-detail-sheet-copy">
+        <small>{{ txt('Today Expense', 'আজকের খরচ') }}</small>
+        <h3>{{ txt('Today Expense', 'আজকের খরচ') }}</h3>
+        <p>{{ txt('আজ যত expense entry হয়েছে, approved + pending মিলিয়ে running expense এখানে দেখুন। rejected expense ধরা হয়নি।', 'Review today running expense including approved and pending entries. Rejected entries are excluded.') }}</p>
+    </div>
+    <div class="graph-detail-stat-grid">
+        <article><span>{{ txt('Today Expense', 'আজকের খরচ') }}</span><strong>{{ home_cards.today_expense_total|money }}</strong></article>
+        <article><span>{{ txt('Expense Entries', 'expense entry') }}</span><strong>{{ home_cards.today_expense_count }}</strong></article>
+        <article><span>{{ txt('Approved Expense', 'approved expense') }}</span><strong>{{ finance_summary.expense_today|money }}</strong></article>
+        <article><span>{{ txt('Month Expense', 'মাসের খরচ') }}</span><strong>{{ finance_summary.expense_month|money }}</strong></article>
+    </div>
+    <div class="graph-detail-actions">
+        {% if role_access.expenses %}<a href="{{ url_for('expenses') }}" class="link-btn">{{ txt('Open Expense', 'খরচ খুলুন') }}</a>{% endif %}
+        {% if role_access.reports %}<a href="{{ url_for('reports', mscreen='menu') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if mobile_view == 'dashboard' %}
+<section class="mobile-native-dashboard-screen no-print">
+    <div class="mobile-dash-overview-grid">
+        <article class="mobile-dash-mini-card">
+            <small>{{ txt('Total Customer', 'মোট কাস্টমার') }}</small>
+            <strong>{{ total_customer_count }}</strong>
+            <span>{{ txt('Wholesale + retail', 'হোলসেল + রিটেইল') }}</span>
+        </article>
+        <article class="mobile-dash-mini-card">
+            <small>{{ txt('Total Supplier', 'মোট সাপ্লায়ার') }}</small>
+            <strong>{{ metrics.total_suppliers }}</strong>
+            <span>{{ txt('Active source list', 'active source list') }}</span>
+        </article>
+        <article class="mobile-dash-mini-card">
+            <small>{{ txt('Stock Units', 'স্টক ইউনিট') }}</small>
+            <strong>{{ metrics.in_stock }}</strong>
+            <span>{{ txt('Live tracked device', 'live tracked device') }}</span>
+        </article>
+        <article class="mobile-dash-mini-card">
+            <small>{{ txt('Low Stock', 'লো স্টক') }}</small>
+            <strong>{{ low_stock_count }}</strong>
+            <span>{{ txt('Need restock soon', 'need restock soon') }}</span>
+        </article>
+    </div>
+
+    <article class="panel mobile-dash-panel">
+        <div class="mobile-dash-panel-head">
+            <strong>{{ txt('Overall Report', 'ওভারঅল রিপোর্ট') }}</strong>
+            <span>{{ request.args.get('year', '2026') }}</span>
+        </div>
+        <div class="mobile-donut-card">
+            <div class="mobile-donut-shell">
+                <div class="mobile-overall-donut" style="--p1: {{ d1 }}; --p2: {{ d2 }}; --p3: {{ d3 }}; --p4: {{ d4 }};">
+                    <div class="mobile-overall-donut-core">
+                        <strong>{{ finance_summary.net_profit_month|money }}</strong>
+                        <small>{{ txt("This Month's Profit", "এই মাসের প্রফিট") }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-donut-legend">
+                <article><span class="swatch sales"></span><label>{{ txt('Sales', 'সেল') }}</label><strong>{{ profit_cards.month.revenue|money }}</strong></article>
+                <article><span class="swatch purchase"></span><label>{{ txt('Purchase', 'ক্রয়') }}</label><strong>{{ month_purchase_cost|money }}</strong></article>
+                <article><span class="swatch income"></span><label>{{ txt('Income', 'ইনকাম') }}</label><strong>{{ finance_summary.net_profit_month|money }}</strong></article>
+                <article><span class="swatch expense"></span><label>{{ txt('Expense', 'খরচ') }}</label><strong>{{ finance_summary.expense_month|money }}</strong></article>
+            </div>
+        </div>
+    </article>
+
+    <article class="panel mobile-dash-panel">
+        <div class="mobile-dash-panel-head">
+            <strong>{{ txt('Profit / Loss', 'প্রফিট / লস') }}</strong>
+            <span>{{ request.args.get('year', '2026') }}</span>
+        </div>
+        <div class="mobile-trend-chart">
+            <div class="mobile-trend-chart-legend">
+                <span><i class="dot dot-profit"></i>{{ txt('Profit', 'প্রফিট') }}: {{ finance_summary.net_profit_month|money }}</span>
+                <span><i class="dot dot-loss"></i>{{ txt('Loss', 'লস') }}: {{ finance_summary.return_value_month|money }}</span>
+            </div>
+            <svg viewBox="0 0 320 168" preserveAspectRatio="none" aria-hidden="true">
+                <line x1="22" y1="18" x2="22" y2="142"></line>
+                <line x1="22" y1="142" x2="302" y2="142"></line>
+                <polyline class="profit-line" points="28,134 64,128 98,96 132,84 166,82 200,70 234,58 268,44 300,38"></polyline>
+                <polyline class="loss-line" points="28,138 64,136 98,128 132,122 166,116 200,104 234,112 268,108 300,102"></polyline>
+            </svg>
+        </div>
+    </article>
+
+    <article class="panel mobile-dash-panel">
+        <div class="mobile-dash-panel-head">
+            <strong>{{ txt('Sales & Purchase', 'সেলস ও পারচেজ') }}</strong>
+            <span>{{ request.args.get('year', '2026') }}</span>
+        </div>
+        <div class="mobile-trend-chart">
+            <div class="mobile-trend-chart-legend">
+                <span><i class="dot dot-purchase"></i>{{ txt('Purchase', 'ক্রয়') }}: {{ month_purchase_cost|money }}</span>
+                <span><i class="dot dot-sales"></i>{{ txt('Sales', 'সেল') }}: {{ profit_cards.month.revenue|money }}</span>
+            </div>
+            <svg viewBox="0 0 320 168" preserveAspectRatio="none" aria-hidden="true">
+                <line x1="22" y1="18" x2="22" y2="142"></line>
+                <line x1="22" y1="142" x2="302" y2="142"></line>
+                <path class="sales-area" d="M28 132 C66 124, 76 90, 110 64 S160 54, 190 138 L190 142 L28 142 Z"></path>
+                <path class="purchase-area" d="M28 140 C56 136, 80 126, 110 92 S152 78, 190 138 L190 142 L28 142 Z"></path>
+            </svg>
+        </div>
+    </article>
+
+    <article class="panel mobile-dash-panel">
+        <div class="mobile-dash-panel-head">
+            <strong>{{ txt('Low Stock', 'লো স্টক') }}</strong>
+            {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}">{{ txt('View All', 'সব দেখুন') }}</a>{% endif %}
+        </div>
+        <div class="mobile-dash-table-list">
+            {% for row in low_stock_models[:5] %}
+            <article>
+                <span class="rank">{{ loop.index }}</span>
+                <div>
+                    <strong>{{ row.brand }} {{ row.model }}</strong>
+                    <small>{{ row.storage }}</small>
+                </div>
+                <b>{{ row.units }}</b>
+            </article>
+            {% else %}
+            <p class="muted-text">{{ txt('No low stock model', 'লো স্টক মডেল নেই') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <div class="mobile-dash-split-grid">
+        <article class="panel mobile-dash-panel">
+            <div class="mobile-dash-panel-head">
+                <strong>{{ txt('Top Profit Brand', 'টপ প্রফিট ব্র্যান্ড') }}</strong>
+                {% if role_access.reports %}<a href="{{ url_for('reports') }}">{{ txt('View All', 'সব দেখুন') }}</a>{% endif %}
+            </div>
+            <div class="mobile-dash-rank-list">
+                {% for b in brand_profit[:5] %}
+                <article>
+                    <div>
+                        <strong>{{ b.label }}</strong>
+                        <small>{{ txt('Units', 'ইউনিট') }}: {{ b.units }}</small>
+                    </div>
+                    <b>{{ b.profit|money }}</b>
+                </article>
+                {% else %}
+                <p class="muted-text">{{ txt('No brand data', 'ব্র্যান্ড ডাটা নেই') }}</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="panel mobile-dash-panel">
+            <div class="mobile-dash-panel-head">
+                <strong>{{ txt('Top Due Shop', 'টপ Due শপ') }}</strong>
+                {% if role_access.customers %}<a href="{{ url_for('customers') }}">{{ txt('View All', 'সব দেখুন') }}</a>{% endif %}
+            </div>
+            <div class="mobile-dash-rank-list">
+                {% for row in due_customer_focus[:5] %}
+                <article>
+                    <div>
+                        <strong>{{ row.shop_name }}</strong>
+                        <small>{{ txt('Due items', 'Due আইটেম') }}: {{ row.due_items }}</small>
+                    </div>
+                    <b>{{ row.due_amount|money }}</b>
+                </article>
+                {% else %}
+                <p class="muted-text">{{ txt('No due data', 'Due ডাটা নেই') }}</p>
+                {% endfor %}
+            </div>
+        </article>
+    </div>
+
+    <article class="panel mobile-dash-panel">
+        <div class="mobile-dash-panel-head">
+            <strong>{{ txt('Recent Activity', 'সাম্প্রতিক এক্টিভিটি') }}</strong>
+            {% if role_access.sales %}<a href="{{ url_for('sales') }}">{{ txt('Open', 'খুলুন') }}</a>{% endif %}
+        </div>
+        <div class="mobile-dash-activity-list">
+            {% for s in recent_sales[:5] %}
+            <article>
+                <div class="icon"><i class="fa-solid fa-receipt"></i></div>
+                <div>
+                    <strong>{{ s.brand }} {{ s.model }}</strong>
+                    <small>{{ s.sold_at }} | {{ s.shop_name or '-' }}</small>
+                </div>
+                <b>{{ s.sold_price|money }}</b>
+            </article>
+            {% else %}
+            <p class="muted-text">{{ txt('No activity yet', 'এখনও এক্টিভিটি নেই') }}</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endif %}
+
+<section class="graph-dash neo-dashboard-shell desktop-dashboard-shell">
+    <section class="panel graph-hero-panel graph-home-surface">
+        <div class="graph-launch-grid graph-launch-grid-top no-print">
+            {% if role_access.products %}<a href="{{ url_for('products') }}" class="graph-launch-card"><i class="fa-solid fa-box-open"></i><span>{{ txt('Product In', 'প্রোডাক্ট ইন') }}</span></a>{% endif %}
+            {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="graph-launch-card"><i class="fa-solid fa-cart-shopping"></i><span>{{ txt('Wholesale', 'হোলসেল') }}</span></a>{% endif %}
+            {% if role_access.sales %}<a href="{{ url_for('retail_sales') }}" class="graph-launch-card"><i class="fa-solid fa-receipt"></i><span>{{ txt('Retail POS', 'রিটেইল POS') }}</span></a>{% endif %}
+            {% if role_access.returns %}<a href="{{ url_for('returns') }}" class="graph-launch-card"><i class="fa-solid fa-rotate-left"></i><span>{{ txt('Returns', 'রিটার্ন') }}</span></a>{% endif %}
+            {% if role_access.customers %}<a href="{{ url_for('customers') }}" class="graph-launch-card"><i class="fa-solid fa-store"></i><span>{{ txt('Wholesale Shops', 'হোলসেল শপ') }}</span></a>{% endif %}
+            {% if role_access.suppliers %}<a href="{{ url_for('suppliers') }}" class="graph-launch-card"><i class="fa-solid fa-truck-ramp-box"></i><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span></a>{% endif %}
+            {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="graph-launch-card"><i class="fa-solid fa-chart-pie"></i><span>{{ txt('Reports', 'রিপোর্ট') }}</span></a>{% endif %}
+            {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}" class="graph-launch-card"><i class="fa-solid fa-warehouse"></i><span>{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</span></a>{% endif %}
+            {% if role_access.imei_lookup %}<a href="{{ url_for('imei_lookup') }}" class="graph-launch-card"><i class="fa-solid fa-magnifying-glass"></i><span>{{ tracking_lookup_label }}</span></a>{% endif %}
+            {% if role_access.shop_settings %}<a href="{{ url_for('shop_settings') }}" class="graph-launch-card"><i class="fa-solid fa-sliders"></i><span>{{ txt('Settings', 'সেটিংস') }}</span></a>{% endif %}
+        </div>
+
+        <div class="graph-kpi-grid">
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-emerald" data-detail-source="kpi-detail-today-revenue">
+                    <small>{{ txt('Today Revenue', 'আজকের রেভিনিউ') }}</small>
+                    <strong>{{ profit_cards.today.revenue|money }}</strong>
+                    <span>{{ txt('Wholesale + retail live sales flow', 'Wholesale + retail live sales flow') }}</span>
+                </button>
+                <div id="kpi-detail-today-revenue" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Live Revenue', 'লাইভ রেভিনিউ') }}</small>
+                        <h3>{{ txt('Today Revenue', 'আজকের রেভিনিউ') }}</h3>
+                        <p>{{ txt('আজ কত সেল এসেছে, কত invoice হয়েছে এবং return pressure কত আছে তা এক নজরে দেখুন।', 'Check sales speed, bill count and return pressure from one place.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('Wholesale Sales', 'হোলসেল সেল') }}</span><strong>{{ ops_stats.today_sales_count }}</strong></article>
+                        <article><span>{{ txt('Retail Bills', 'রিটেইল বিল') }}</span><strong>{{ ops_stats.today_retail_invoice_count }}</strong></article>
+                        <article><span>{{ txt('Net Profit Today', 'নিট প্রফিট (আজ)') }}</span><strong>{{ finance_summary.net_profit_today|money }}</strong></article>
+                        <article><span>{{ txt('Today Returns', 'আজকের রিটার্ন') }}</span><strong>{{ ops_stats.today_returns_count }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="link-btn">{{ txt('Open Sales', 'সেল খুলুন') }}</a>{% endif %}
+                        {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-blue" data-detail-source="kpi-detail-month-profit">
+                    <small>{{ txt('Month Net Profit', 'মাসের নিট প্রফিট') }}</small>
+                    <strong>{{ finance_summary.net_profit_month|money }}</strong>
+                    <span>{{ txt('After approved expense and return pressure', 'approved expense ও return pressure-এর পরে') }}</span>
+                </button>
+                <div id="kpi-detail-month-profit" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Profit View', 'প্রফিট ভিউ') }}</small>
+                        <h3>{{ txt('Month Net Profit', 'মাসের নিট প্রফিট') }}</h3>
+                        <p>{{ txt('Gross profit, approved expense এবং return value বাদ দিয়ে real net margin দেখুন।', 'Review true net margin after expense and return pressure.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('Gross Profit', 'গ্রস প্রফিট') }}</span><strong>{{ profit_cards.month.profit|money }}</strong></article>
+                        <article><span>{{ txt('Expense (Month)', 'খরচ (মাস)') }}</span><strong>{{ finance_summary.expense_month|money }}</strong></article>
+                        <article><span>{{ txt('Return Value', 'রিটার্ন ভ্যালু') }}</span><strong>{{ finance_summary.return_value_month|money }}</strong></article>
+                        <article><span>{{ txt('Revenue (Month)', 'রেভিনিউ (মাস)') }}</span><strong>{{ profit_cards.month.revenue|money }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.expenses %}<a href="{{ url_for('expenses') }}" class="link-btn">{{ txt('Open Expense', 'খরচ খুলুন') }}</a>{% endif %}
+                        {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="btn-secondary">{{ txt('Profit Report', 'প্রফিট রিপোর্ট') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-violet" data-detail-source="kpi-detail-due">
+                    <small>{{ txt('Due Exposure', 'Due এক্সপোজার') }}</small>
+                    <strong>{{ metrics.due_amount|money }}</strong>
+                    <span>{{ txt('Track risky partner cash recovery', 'risky partner cash recovery track করুন') }}</span>
+                </button>
+                <div id="kpi-detail-due" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Collection Watch', 'কালেকশন ওয়াচ') }}</small>
+                        <h3>{{ txt('Due Exposure', 'Due এক্সপোজার') }}</h3>
+                        <p>{{ txt('কে কত due রেখেছে, আজ কত আদায় হয়েছে এবং risk কোন দিকে বাড়ছে তা দেখুন।', 'Track who owes, what was collected today and where cash risk is rising.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('Outstanding Due', 'মোট বাকি') }}</span><strong>{{ metrics.due_amount|money }}</strong></article>
+                        <article><span>{{ txt('Due Customers', 'Due কাস্টমার') }}</span><strong>{{ ops_stats.due_customers_count }}</strong></article>
+                        <article><span>{{ txt('Due Sales', 'Due সেল') }}</span><strong>{{ ops_stats.due_sales_count }}</strong></article>
+                        <article><span>{{ txt('Collected Today', 'আজ আদায়কৃত') }}</span><strong>{{ ops_stats.today_collected_due|money }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.customers %}<a href="{{ url_for('customers') }}" class="link-btn">{{ txt('Open Shops', 'শপ খুলুন') }}</a>{% endif %}
+                        {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-amber" data-detail-source="kpi-detail-risk">
+                    <small>{{ txt('Stock At Risk', 'ঝুঁকিতে স্টক') }}</small>
+                    <strong>{{ low_stock_count }}</strong>
+                    <span>{{ txt('Models already touching restock line', 'রিস্টক লাইনে থাকা মডেল') }}</span>
+                </button>
+                <div id="kpi-detail-risk" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Restock Alert', 'রিস্টক অ্যালার্ট') }}</small>
+                        <h3>{{ txt('Stock At Risk', 'ঝুঁকিতে স্টক') }}</h3>
+                        <p>{{ txt('কোন model গুলো দ্রুত শেষ হয়ে যেতে পারে এবং supplier follow-up লাগবে তা দেখুন।', 'See which models may run out soon and need supplier follow-up.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('Low Stock Models', 'লো স্টক মডেল') }}</span><strong>{{ low_stock_count }}</strong></article>
+                        <article><span>{{ txt('In Stock Units', 'স্টকে ইউনিট') }}</span><strong>{{ metrics.in_stock }}</strong></article>
+                        <article><span>{{ txt('Tracked Units', 'Tracked ইউনিট') }}</span><strong>{{ metrics.total_products }}</strong></article>
+                        <article><span>{{ txt('Suppliers', 'সাপ্লায়ার') }}</span><strong>{{ metrics.total_suppliers }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}" class="link-btn">{{ txt('Open Stock', 'স্টক খুলুন') }}</a>{% endif %}
+                        {% if role_access.suppliers %}<a href="{{ url_for('suppliers') }}" class="btn-secondary">{{ txt('Open Suppliers', 'সাপ্লায়ার খুলুন') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-emerald" data-detail-source="kpi-detail-lifetime">
+                    <small>{{ txt('Lifetime Revenue', 'লাইফটাইম রেভিনিউ') }}</small>
+                    <strong>{{ profit_cards.lifetime.revenue|money }}</strong>
+                    <span>{{ txt('Total business revenue from launch day', 'শুরু থেকে মোট বিজনেস রেভিনিউ') }}</span>
+                </button>
+                <div id="kpi-detail-lifetime" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Long View', 'লং ভিউ') }}</small>
+                        <h3>{{ txt('Lifetime Revenue', 'লাইফটাইম রেভিনিউ') }}</h3>
+                        <p>{{ txt('বিজনেস শুরু থেকে মোট revenue, current year net এবং month progress একসাথে দেখুন।', 'See total revenue since launch together with current year and month progress.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('Lifetime Revenue', 'লাইফটাইম রেভিনিউ') }}</span><strong>{{ profit_cards.lifetime.revenue|money }}</strong></article>
+                        <article><span>{{ txt('Year Net Profit', 'নিট প্রফিট (বছর)') }}</span><strong>{{ finance_summary.net_profit_year|money }}</strong></article>
+                        <article><span>{{ txt('Month Revenue', 'রেভিনিউ (মাস)') }}</span><strong>{{ profit_cards.month.revenue|money }}</strong></article>
+                        <article><span>{{ txt('Today Revenue', 'আজকের রেভিনিউ') }}</span><strong>{{ profit_cards.today.revenue|money }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="link-btn">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            <article class="graph-kpi-shell">
+                <button type="button" class="graph-hero-summary-card graph-kpi-card tone-blue" data-detail-source="kpi-detail-stock">
+                    <small>{{ txt('In Stock', 'স্টকে') }}</small>
+                    <strong>{{ metrics.in_stock }}</strong>
+                    <span>{{ txt('Live available tracked units', 'লাইভ available tracked unit') }}</span>
+                </button>
+                <div id="kpi-detail-stock" class="graph-kpi-detail-source" hidden>
+                    <div class="graph-detail-sheet-copy">
+                        <small>{{ txt('Inventory View', 'ইনভেন্টরি ভিউ') }}</small>
+                        <h3>{{ txt('In Stock', 'স্টকে') }}</h3>
+                        <p>{{ txt('বর্তমান stock, tracked device এবং last backup overview এই sheet-এ দেখুন।', 'Review available stock, tracked devices and backup snapshot from this sheet.') }}</p>
+                    </div>
+                    <div class="graph-detail-stat-grid">
+                        <article><span>{{ txt('In Stock', 'স্টকে') }}</span><strong>{{ metrics.in_stock }}</strong></article>
+                        <article><span>{{ txt('Tracked Units', 'Tracked ইউনিট') }}</span><strong>{{ metrics.total_products }}</strong></article>
+                        <article><span>{{ txt('Low Stock', 'লো স্টক') }}</span><strong>{{ low_stock_count }}</strong></article>
+                        <article><span>{{ txt('Last Backup', 'সর্বশেষ ব্যাকআপ') }}</span><strong>{{ backup_info.created_at[:16] if backup_info else txt('Not yet', 'এখনও না') }}</strong></article>
+                    </div>
+                    <div class="graph-detail-actions">
+                        {% if role_access.stock_report %}<a href="{{ url_for('stock_report') }}" class="link-btn">{{ txt('Stock Report', 'স্টক রিপোর্ট') }}</a>{% endif %}
+                        {% if role_access.products %}<a href="{{ url_for('products') }}" class="btn-secondary">{{ txt('Product In', 'প্রোডাক্ট ইন') }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="graph-panel-row graph-panel-row-analytics">
+        <article class="panel graph-panel graph-panel-trend">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Overview', 'ওভারভিউ') }}</span>
+                    <h3><i class="fa-solid fa-chart-line"></i>{{ txt('Sales Performance', 'সেলস পারফরম্যান্স') }}</h3>
+                </div>
+                <div class="graph-chip-row compact">
+                    <span>{{ txt('Today', 'আজ') }}: {{ profit_cards.today.revenue|money }}</span>
+                    <span>{{ txt('This Month', 'এই মাস') }}: {{ profit_cards.month.revenue|money }}</span>
+                    <span>{{ txt('Net(M)', 'নিট(মাস)') }}: {{ finance_summary.net_profit_month|money }}</span>
+                </div>
+            </div>
+            <p class="muted-text">{{ txt('Revenue and profit trend overview.', 'রেভিনিউ ও প্রফিটের ট্রেন্ড ওভারভিউ।') }}</p>
+            <div class="graph-line-chart" aria-hidden="true">
+                <svg viewBox="0 0 320 138" preserveAspectRatio="none">
+                    <polyline points="8,112 48,98 88,102 128,76 168,72 208,58 248,44 288,32 312,28"></polyline>
+                </svg>
+            </div>
+        </article>
+
+        <article class="panel graph-panel graph-panel-partners">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Partner Watch', 'পার্টনার ওয়াচ') }}</span>
+                    <h3><i class="fa-solid fa-user-group"></i>{{ txt('Top Wholesale Shops', 'টপ হোলসেল শপ') }}</h3>
+                </div>
+                <span class="badge stock">{{ txt('This Month', 'এই মাস') }}</span>
+            </div>
+            <div class="graph-top-list">
+                {% set due_ns = namespace(max_due=0.0) %}
+                {% for row in due_customer_focus[:5] %}
+                    {% if row.due_amount > due_ns.max_due %}{% set due_ns.max_due = row.due_amount %}{% endif %}
+                {% endfor %}
+                {% for row in due_customer_focus[:5] %}
+                {% set ratio = ((row.due_amount * 100 / due_ns.max_due) if due_ns.max_due else 0) %}
+                <article>
+                    <header>
+                        <strong>{{ row.shop_name }}</strong>
+                        <span>{{ row.due_amount|money }}</span>
+                    </header>
+                    <small>{{ txt('Due items', 'Due আইটেম') }}: {{ row.due_items }}</small>
+                    <div><span style="width: {{ ratio if ratio <= 100 else 100 }}%"></span></div>
+                </article>
+                {% else %}
+                <p class="muted-text">{{ txt('No due data', 'Due ডাটা নেই') }}</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="panel graph-panel graph-panel-category">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Mix', 'মিক্স') }}</span>
+                    <h3><i class="fa-solid fa-chart-pie"></i>{{ txt('Category Performance', 'ক্যাটাগরি পারফরম্যান্স') }}</h3>
+                </div>
+            </div>
+            <div class="graph-donut-wrap">
+                <div class="graph-donut" style="--p1: {{ c1 }}; --p2: {{ c2 }}; --p3: {{ c3 }}; --p4: {{ c4 }};"></div>
+                <div class="graph-donut-list">
+                    {% for item in top_categories %}
+                    {% set pct = ((item.revenue * 100 / cat_ns.total) if cat_ns.total else 0) %}
+                    <article>
+                        <span>{{ item.label }}</span>
+                        <strong>{{ pct|round(1) }}%</strong>
+                    </article>
+                    {% else %}
+                    <p class="muted-text">{{ txt('No category data', 'ক্যাটাগরি ডাটা নেই') }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="graph-panel-row graph-panel-row-secondary">
+        <article class="panel graph-panel graph-panel-activity">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Activity', 'এক্টিভিটি') }}</span>
+                    <h3><i class="fa-solid fa-bolt"></i>{{ txt('Recent Activity', 'সাম্প্রতিক এক্টিভিটি') }}</h3>
+                </div>
+            </div>
+            <div class="graph-activity">
+                {% for s in recent_sales[:6] %}
+                <article>
+                    <i class="fa-solid fa-receipt"></i>
+                    <div>
+                        <strong>{{ txt('Sale completed', 'সেল সম্পন্ন') }}</strong>
+                        <small>{{ s.sold_at }} | {{ s.shop_name or '-' }}</small>
+                    </div>
+                    <span>{{ s.sold_price|money }}</span>
+                </article>
+                {% else %}
+                <p class="muted-text">{{ txt('No activity yet', 'এখনও এক্টিভিটি নেই') }}</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="panel graph-panel graph-panel-brand">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Brand Signal', 'ব্র্যান্ড সিগন্যাল') }}</span>
+                    <h3><i class="fa-solid fa-ranking-star"></i>{{ txt('Top Profit Brands', 'টপ প্রফিট ব্র্যান্ড') }}</h3>
+                </div>
+            </div>
+            <div class="graph-ranking">
+                {% for b in brand_profit[:5] %}
+                <article>
+                    <strong>{{ loop.index }}. {{ b.label }}</strong>
+                    <span>{{ b.profit|money }}</span>
+                </article>
+                {% else %}
+                <p class="muted-text">{{ txt('No brand data', 'ব্র্যান্ড ডাটা নেই') }}</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="panel graph-panel graph-panel-ops">
+            <div class="graph-head">
+                <div>
+                    <span class="graph-panel-tag">{{ txt('Ops Monitor', 'অপস মনিটর') }}</span>
+                    <h3><i class="fa-solid fa-radar"></i>{{ txt('Operational Pulse', 'অপারেশনাল পালস') }}</h3>
+                </div>
+            </div>
+            <div class="graph-ops-grid">
+                <article>
+                    <small>{{ txt('Today Sales', 'আজকের সেল') }}</small>
+                    <strong>{{ ops_stats.today_sales_count }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Today Returns', 'আজকের রিটার্ন') }}</small>
+                    <strong>{{ ops_stats.today_returns_count }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Due Sales', 'Due সেল') }}</small>
+                    <strong>{{ ops_stats.due_sales_count }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Collected Due', 'আদায়কৃত Due') }}</small>
+                    <strong>{{ ops_stats.today_collected_due|money }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Retail Bills', 'রিটেইল বিল') }}</small>
+                    <strong>{{ ops_stats.today_retail_invoice_count }}</strong>
+                </article>
+                <article>
+                    <small>{{ txt('Last Backup', 'সর্বশেষ ব্যাকআপ') }}</small>
+                    <strong>{{ backup_info.created_at[:16] if backup_info else txt('Not yet', 'এখনও না') }}</strong>
+                </article>
+            </div>
+        </article>
+    </section>
+
+    <div id="kpi-detail-today-profit" class="graph-kpi-detail-source" hidden>
+        <div class="graph-detail-sheet-copy">
+            <small>{{ txt('Today Profit', 'আজকের প্রফিট') }}</small>
+            <h3>{{ txt('Today Net Profit', 'আজকের নিট প্রফিট') }}</h3>
+            <p>{{ txt('আজকের revenue, approved expense এবং return pressure বাদ দিলে যেটা হাতে থাকে সেটাই এই নেট প্রফিট।', 'This is the real profit after today revenue, approved expense and return pressure.') }}</p>
+        </div>
+        <div class="graph-detail-stat-grid">
+            <article><span>{{ txt('Today Revenue', 'আজকের রেভিনিউ') }}</span><strong>{{ profit_cards.today.revenue|money }}</strong></article>
+            <article><span>{{ txt('Today Expense', 'আজকের খরচ') }}</span><strong>{{ finance_summary.expense_today|money }}</strong></article>
+            <article><span>{{ txt('Return Value', 'রিটার্ন ভ্যালু') }}</span><strong>{{ finance_summary.return_value_today|money }}</strong></article>
+            <article><span>{{ txt('Net Profit', 'নিট প্রফিট') }}</span><strong>{{ finance_summary.net_profit_today|money }}</strong></article>
+        </div>
+        <div class="graph-detail-actions">
+            {% if role_access.sales %}<a href="{{ url_for('sales') }}" class="link-btn">{{ txt('Open Sale', 'সেল খুলুন') }}</a>{% endif %}
+            {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+        </div>
+    </div>
+
+    <div id="kpi-detail-today-expense" class="graph-kpi-detail-source" hidden>
+        <div class="graph-detail-sheet-copy">
+            <small>{{ txt('Expense Watch', 'খরচ ওয়াচ') }}</small>
+            <h3>{{ txt('Today Expense', 'আজকের খরচ') }}</h3>
+            <p>{{ txt('আজ approved হওয়া cash outflow, month expense এবং net margin impact এখানে দেখুন।', 'Review approved cash outflow, month expense and net margin impact here.') }}</p>
+        </div>
+        <div class="graph-detail-stat-grid">
+            <article><span>{{ txt('Today Expense', 'আজকের খরচ') }}</span><strong>{{ finance_summary.expense_today|money }}</strong></article>
+            <article><span>{{ txt('Expense (Month)', 'খরচ (মাস)') }}</span><strong>{{ finance_summary.expense_month|money }}</strong></article>
+            <article><span>{{ txt('Month Net Profit', 'মাসের নিট প্রফিট') }}</span><strong>{{ finance_summary.net_profit_month|money }}</strong></article>
+            <article><span>{{ txt('Lifetime Expense', 'লাইফটাইম খরচ') }}</span><strong>{{ finance_summary.expense_lifetime|money }}</strong></article>
+        </div>
+        <div class="graph-detail-actions">
+            {% if role_access.expenses %}<a href="{{ url_for('expenses') }}" class="link-btn">{{ txt('Open Expense', 'খরচ খুলুন') }}</a>{% endif %}
+            {% if role_access.reports %}<a href="{{ url_for('reports') }}" class="btn-secondary">{{ txt('Open Reports', 'রিপোর্ট খুলুন') }}</a>{% endif %}
+        </div>
+    </div>
+
+    <div class="graph-detail-sheet-backdrop" id="graphDetailSheetBackdrop" hidden></div>
+    <section class="graph-detail-sheet" id="graphDetailSheet" hidden aria-labelledby="graphDetailSheetTitle">
+        <div class="graph-detail-sheet-head">
+            <div>
+                <small id="graphDetailSheetEyebrow">{{ txt('Details', 'ডিটেইলস') }}</small>
+                <h3 id="graphDetailSheetTitle">{{ txt('Details Sheet', 'ডিটেইলস শিট') }}</h3>
+            </div>
+            <button type="button" class="softx-mobile-quickclose" id="graphDetailSheetClose" aria-label="{{ txt('Close details sheet', 'ডিটেইলস শিট বন্ধ করুন') }}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="graph-detail-sheet-body" id="graphDetailSheetBody"></div>
+    </section>
+</section>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const triggers = Array.from(document.querySelectorAll('.graph-kpi-card[data-detail-source], .mobile-native-stat-card[data-detail-source]'));
+    const sheet = document.getElementById('graphDetailSheet');
+    const backdrop = document.getElementById('graphDetailSheetBackdrop');
+    const closeBtn = document.getElementById('graphDetailSheetClose');
+    const titleEl = document.getElementById('graphDetailSheetTitle');
+    const eyebrowEl = document.getElementById('graphDetailSheetEyebrow');
+    const bodyEl = document.getElementById('graphDetailSheetBody');
+
+    if (!triggers.length || !sheet || !backdrop || !closeBtn || !titleEl || !eyebrowEl || !bodyEl) return;
+
+    function closeSheet() {
+        sheet.hidden = true;
+        backdrop.hidden = true;
+        document.body.classList.remove('graph-detail-sheet-open');
+        bodyEl.innerHTML = '';
+    }
+
+    function openSheet(trigger) {
+        const sourceId = trigger.getAttribute('data-detail-source');
+        if (!sourceId) return;
+        const source = document.getElementById(sourceId);
+        if (!source) return;
+        const label = trigger.querySelector('small');
+        const title = trigger.querySelector('strong');
+        eyebrowEl.textContent = label ? label.textContent.trim() : '{{ txt('Details', 'ডিটেইলস') }}';
+        titleEl.textContent = title ? title.textContent.trim() : '{{ txt('Details Sheet', 'ডিটেইলস শিট') }}';
+        bodyEl.innerHTML = source.innerHTML;
+        sheet.hidden = false;
+        backdrop.hidden = false;
+        document.body.classList.add('graph-detail-sheet-open');
+    }
+
+    triggers.forEach((trigger) => {
+        trigger.addEventListener('click', () => openSheet(trigger));
+    });
+
+    closeBtn.addEventListener('click', closeSheet);
+    backdrop.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeSheet();
+    });
+})();
+</script>
+{% endblock %}

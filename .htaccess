@@ -1,0 +1,16 @@
+Options -MultiViews
+RewriteEngine On
+
+# Let Passenger serve the Flask application from this folder.
+# Python App Manager may rewrite these lines; keeping a minimal valid file
+# avoids blank startup on first upload.
+
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/unboxing/pocketpro.corexbd.com"
+PassengerBaseURI "/"
+PassengerPython "/home/unboxing/virtualenv/pocketpro.corexbd.com/3.11/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /passenger_wsgi.py [L]

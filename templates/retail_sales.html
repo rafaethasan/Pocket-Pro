@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}{{ txt('Retail POS', 'রিটেইল POS') }} | Soft X{% endblock %}
+{% block content %}
+<section class="panel hero-panel">
+    <div class="module-intro-grid">
+        <div>
+            <span class="graph-panel-tag">{{ txt('POS Desk', 'POS ডেস্ক') }}</span>
+            <h3 class="section-title"><i class="fa-solid fa-cash-register"></i>{{ txt('Retail POS Invoice Builder', 'রিটেইল POS ইনভয়েস বিল্ডার') }}</h3>
+            <p class="muted-text">{{ txt('Local customer sale with smart invoice, IMEI tracking and QR share link.', 'লোকাল কাস্টমারের জন্য smart invoice, IMEI tracking এবং QR share link সহ সেল।') }}</p>
+        </div>
+        <div class="toolbar">
+            <a class="link-btn" href="{{ url_for('sales') }}"><i class="fa-solid fa-arrow-left"></i>{{ txt('Back to Sales', 'সেলসে ফিরুন') }}</a>
+        </div>
+    </div>
+</section>
+
+<section class="module-focus-grid no-print">
+    <a href="#retail-pos-form" class="module-focus-card">
+        <i class="fa-solid fa-file-invoice"></i>
+        <strong>{{ txt('Invoice', 'ইনভয়েস') }}</strong>
+        <span>{{ txt('Build new POS bill', 'নতুন POS বিল তৈরি') }}</span>
+    </a>
+    <a href="#retail-customer-block" class="module-focus-card">
+        <i class="fa-solid fa-user-group"></i>
+        <strong>{{ txt('Customer', 'কাস্টমার') }}</strong>
+        <span>{{ txt('Pick or type customer', 'সেভ বা নতুন কাস্টমার') }}</span>
+    </a>
+    <a href="#retail-imei-block" class="module-focus-card">
+        <i class="fa-solid fa-mobile-screen"></i>
+        <strong>{{ tracking_code_label }}</strong>
+        <span>{{ txt('Scan or search item', 'স্ক্যান বা সার্চ করুন') }}</span>
+    </a>
+    <a href="#retail-invoice-history" class="module-focus-card">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <strong>{{ txt('Invoices', 'ইনভয়েস') }}</strong>
+        <span>{{ txt('Recent bill history', 'সাম্প্রতিক বিল হিস্ট্রি') }}</span>
+    </a>
+</section>
+
+<section class="panel" id="retail-pos-form">
+    <form method="post" class="form-grid">
+        <label>
+            {{ txt('Invoice No', 'ইনভয়েস নং') }}
+            <input type="text" name="invoice_no" placeholder="{{ txt('Leave empty = auto invoice', 'ফাঁকা রাখুন = auto invoice') }}">
+        </label>
+        <label>
+            {{ txt('Sale Date', 'সেল তারিখ') }}
+            <input type="date" name="sold_at" value="{{ today }}">
+        </label>
+        <label class="span-2" id="retail-customer-block">
+            {{ txt('Saved Retail Customer', 'সেভ করা রিটেইল কাস্টমার') }}
+            <select name="retail_customer_id" id="retailInvoiceCustomerSelect">
+                <option value="">-- {{ txt('Select retail customer (optional)', 'রিটেইল কাস্টমার সিলেক্ট করুন (অপশনাল)') }} --</option>
+                {% for customer in retail_customers %}
+                <option
+                    value="{{ customer.id }}"
+                    data-name="{{ customer.full_name }}"
+                    data-phone="{{ customer.phone or '' }}"
+                    data-address="{{ customer.address or '' }}"
+                >
+                    {{ customer.full_name }}{% if customer.phone %} ({{ customer.phone }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            {{ txt('Customer Name', 'কাস্টমারের নাম') }} *
+            <input type="text" name="customer_name" id="retailInvoiceCustomerName" required placeholder="{{ txt('Walk-in customer name', 'লোকাল কাস্টমারের নাম') }}">
+        </label>
+        <label>
+            {{ txt('Mobile Number', 'মোবাইল নাম্বার') }}
+            <input type="text" name="customer_phone" id="retailInvoiceCustomerPhone" placeholder="01XXXXXXXXX">
+        </label>
+        <label class="span-2" id="retail-imei-block">
+            {{ txt('Address', 'ঠিকানা') }}
+            <input type="text" name="customer_address" id="retailInvoiceCustomerAddress" placeholder="{{ txt('Customer address', 'কাস্টমারের ঠিকানা') }}">
+        </label>
+        <label>
+            {{ txt('Payment Status', 'পেমেন্ট স্ট্যাটাস') }}
+            <select name="payment_status">
+                <option value="PAID">PAID</option>
+                <option value="DUE">DUE</option>
+            </select>
+        </label>
+        <label>
+            {{ txt('Paid Total (BDT)', 'মোট পরিশোধ (৳)') }}
+            <input type="number" name="paid_total" min="0" step="0.01" placeholder="{{ txt('empty = auto by payment status', 'ফাঁকা = payment status অনুযায়ী auto') }}">
+        </label>
+        <label>
+            {{ txt('One Price For All Items (Optional)', 'সব আইটেমের জন্য একই দাম (Optional)') }}
+            <input type="number" name="one_price" min="0" step="0.01" placeholder="{{ txt('empty = each product retail price', 'ফাঁকা = product retail price') }}">
+        </label>
+        <label class="span-2">
+            {{ tracking_code_label }} {{ txt('Entry', 'এন্ট্রি') }} *
+            <div class="inline-field">
+                <input type="text" id="retailImeiSearch" placeholder="{{ txt('Type model name or last 3-4 digits of IMEI', 'মডেল নাম বা IMEI-এর শেষ ৩-৪ ডিজিট লিখুন') }}" data-scan-mode="{{ tracking_code_mode }}" data-scan-label="{{ tracking_code_label }}" autocomplete="off">
+                <button type="button" class="btn-secondary" data-scan-target="#retailImeiSearch"><i class="fa-solid fa-barcode"></i>Scan</button>
+                <button type="button" class="btn-secondary" id="retailSearchBtn"><i class="fa-solid fa-magnifying-glass"></i>{{ txt('Search', 'সার্চ') }}</button>
+            </div>
+            <div class="smart-search-suggest" id="retailSearchSuggest" hidden></div>
+        </label>
+        <label class="span-2">
+            {{ txt('Choose In-Stock Item', 'স্টক থেকে আইটেম সিলেক্ট করুন') }}
+            <div class="inline-field">
+                <select id="retailProductSelect">
+                    <option value="">-- {{ txt('Select', 'নির্বাচন করুন') }} --</option>
+                    {% for item in in_stock_products %}
+                    <option
+                        value="{{ item.imei }}"
+                        data-imei="{{ item.imei }}"
+                        data-brand="{{ item.brand or '' }}"
+                        data-model="{{ item.model or '' }}"
+                        data-storage="{{ item.storage or '' }}"
+                        data-color="{{ item.color or '' }}"
+                        data-retail="{{ item.retail_price }}"
+                    >
+                        {{ item.imei }} | {{ item.brand }} {{ item.model }} | {{ item.storage or '-' }} | {{ item.color or '-' }} | {{ item.retail_price|money }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="button" id="addRetailImei" class="btn-secondary"><i class="fa-solid fa-plus"></i>{{ txt('Add', 'যোগ') }}</button>
+            </div>
+        </label>
+        <label class="span-2">
+            {{ tracking_code_label }} {{ txt('List (one per line)', 'লিস্ট (প্রতি লাইনে একটি)') }} *
+            <textarea name="imei_bulk" id="retailImeiBulk" rows="6" required placeholder="{{ tracking_code_sample }}&#10;{{ tracking_code_sample }}2"></textarea>
+        </label>
+        <label class="span-2">
+            {{ txt('Note', 'নোট') }}
+            <input type="text" name="note" placeholder="{{ txt('Optional note for this invoice', 'এই invoice-এর জন্য optional note') }}">
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit"><i class="fa-solid fa-file-invoice-dollar"></i>{{ txt('Create Retail Invoice', 'রিটেইল ইনভয়েস তৈরি করুন') }}</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel" id="retail-invoice-history">
+    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>{{ txt('Recent Retail Invoices', 'সাম্প্রতিক রিটেইল ইনভয়েস') }}</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ txt('Date', 'তারিখ') }}</th>
+                    <th>{{ txt('Invoice', 'ইনভয়েস') }}</th>
+                    <th>{{ txt('Customer', 'কাস্টমার') }}</th>
+                    <th>{{ txt('Subtotal', 'সাবটোটাল') }}</th>
+                    <th>{{ txt('Paid', 'পরিশোধ') }}</th>
+                    <th>{{ txt('Due', 'বাকি') }}</th>
+                    <th>{{ txt('Status', 'স্ট্যাটাস') }}</th>
+                    <th>{{ txt('Open', 'ওপেন') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in recent_invoices %}
+                <tr>
+                    <td>{{ inv.sold_at }}</td>
+                    <td>{{ inv.invoice_no }}</td>
+                    <td>{{ inv.customer_name }}</td>
+                    <td>{{ inv.subtotal|money }}</td>
+                    <td>{{ inv.paid_amount|money }}</td>
+                    <td>{{ inv.due_amount|money }}</td>
+                    <td><span class="badge {% if inv.payment_status == 'PAID' %}paid{% else %}due{% endif %}">{{ inv.payment_status }}</span></td>
+                    <td><a class="link-btn" href="{{ url_for('retail_invoice', invoice_no=inv.invoice_no) }}"><i class="fa-solid fa-arrow-up-right-from-square"></i>{{ txt('View', 'দেখুন') }}</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8">{{ txt('No retail invoice yet', 'এখনও কোনো রিটেইল ইনভয়েস নেই') }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const retailSearchInput = document.getElementById("retailImeiSearch");
+const retailSearchBtn = document.getElementById("retailSearchBtn");
+const retailSearchSuggest = document.getElementById("retailSearchSuggest");
+const retailSelect = document.getElementById("retailProductSelect");
+const retailBulk = document.getElementById("retailImeiBulk");
+const addRetailBtn = document.getElementById("addRetailImei");
+const retailInvoiceCustomerSelect = document.getElementById("retailInvoiceCustomerSelect");
+const retailInvoiceCustomerName = document.getElementById("retailInvoiceCustomerName");
+const retailInvoiceCustomerPhone = document.getElementById("retailInvoiceCustomerPhone");
+const retailInvoiceCustomerAddress = document.getElementById("retailInvoiceCustomerAddress");
+
+function normalizeRetailToken(value) {
+    return String(value || "").trim().toUpperCase();
+}
+
+function retailModelKey(row) {
+    return [
+        normalizeRetailToken(row.brand),
+        normalizeRetailToken(row.model),
+        normalizeRetailToken(row.storage),
+        normalizeRetailToken(row.color),
+    ].join("|");
+}
+
+function escapeRetailHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+const retailProducts = retailSelect
+    ? Array.from(retailSelect.options)
+          .filter((option) => option.value)
+          .map((option) => ({
+              value: String(option.value),
+              imei: String(option.dataset.imei || ""),
+              brand: String(option.dataset.brand || ""),
+              model: String(option.dataset.model || ""),
+              storage: String(option.dataset.storage || ""),
+              color: String(option.dataset.color || ""),
+              retail: String(option.dataset.retail || ""),
+              label: String(option.textContent || "").trim(),
+              modelKey: retailModelKey({
+                  brand: option.dataset.brand || "",
+                  model: option.dataset.model || "",
+                  storage: option.dataset.storage || "",
+                  color: option.dataset.color || "",
+              }),
+          }))
+    : [];
+
+const retailModelMap = new Map();
+retailProducts.forEach((row) => {
+    if (!row.modelKey.replace(/\|/g, "").trim()) return;
+    if (!retailModelMap.has(row.modelKey)) {
+        retailModelMap.set(row.modelKey, {
+            key: row.modelKey,
+            brand: row.brand,
+            model: row.model,
+            storage: row.storage,
+            color: row.color,
+            count: 0,
+        });
+    }
+    retailModelMap.get(row.modelKey).count += 1;
+});
+
+const retailModelCatalog = Array.from(retailModelMap.values());
+
+function appendImeiToBulk(value) {
+    if (!retailBulk || !value) return;
+    const current = retailBulk.value.split(/\s+/).map(v => v.trim()).filter(Boolean);
+    if (current.includes(value)) return;
+    retailBulk.value = retailBulk.value.trim() ? `${retailBulk.value.trim()}\n${value}` : value;
+}
+
+if (addRetailBtn && retailSelect) {
+    addRetailBtn.addEventListener("click", function () {
+        const value = retailSelect.value;
+        appendImeiToBulk(value);
+    });
+}
+
+if (retailInvoiceCustomerSelect) {
+    retailInvoiceCustomerSelect.addEventListener("change", function () {
+        const selected = retailInvoiceCustomerSelect.options[retailInvoiceCustomerSelect.selectedIndex];
+        if (!selected || !selected.value) return;
+        if (retailInvoiceCustomerName && !retailInvoiceCustomerName.value.trim()) {
+            retailInvoiceCustomerName.value = selected.dataset.name || "";
+        }
+        if (retailInvoiceCustomerPhone && !retailInvoiceCustomerPhone.value.trim()) {
+            retailInvoiceCustomerPhone.value = selected.dataset.phone || "";
+        }
+        if (retailInvoiceCustomerAddress && !retailInvoiceCustomerAddress.value.trim()) {
+            retailInvoiceCustomerAddress.value = selected.dataset.address || "";
+        }
+    });
+}
+
+if (retailSearchInput && retailSelect) {
+    function setRetailSuggestVisibility(show) {
+        if (!retailSearchSuggest) return;
+        retailSearchSuggest.hidden = !show;
+    }
+
+    function selectFirstRetailMatch(rawValue) {
+        const value = normalizeRetailToken(rawValue);
+        if (!value) return "";
+        let startsWithMatch = "";
+        let containsMatch = "";
+        for (const option of retailSelect.options) {
+            const code = normalizeRetailToken(option.dataset?.imei || "");
+            if (!code) continue;
+            if (code === value) {
+                retailSelect.value = option.value;
+                return option.value;
+            }
+            if (!startsWithMatch && code.startsWith(value)) {
+                startsWithMatch = option.value;
+            }
+            if (!containsMatch && code.includes(value)) {
+                containsMatch = option.value;
+            }
+        }
+        const best = startsWithMatch || containsMatch;
+        if (best) {
+            retailSelect.value = best;
+        }
+        return best;
+    }
+
+    function buildRetailSuggestions(query) {
+        const raw = String(query || "").trim();
+        if (!raw) return [];
+        const numeric = /^[0-9]+$/.test(raw);
+
+        if (numeric) {
+            const token = normalizeRetailToken(raw);
+            const exactMatches = [];
+            const suffixMatches = [];
+            const prefixMatches = [];
+            const containsMatches = [];
+
+            retailProducts.forEach((row) => {
+                const imei = normalizeRetailToken(row.imei);
+                if (!imei) return;
+                if (imei === token) {
+                    exactMatches.push({ kind: "imei", row });
+                    return;
+                }
+                if (imei.endsWith(token)) {
+                    suffixMatches.push({ kind: "imei", row });
+                    return;
+                }
+                if (imei.startsWith(token)) {
+                    prefixMatches.push({ kind: "imei", row });
+                    return;
+                }
+                if (imei.includes(token)) {
+                    containsMatches.push({ kind: "imei", row });
+                }
+            });
+
+            return [...exactMatches, ...suffixMatches, ...prefixMatches, ...containsMatches]
+                .filter((item, index, rows) => rows.findIndex((other) => other.row.value === item.row.value) === index)
+                .slice(0, 8);
+        }
+
+        const token = normalizeRetailToken(raw);
+        return retailModelCatalog
+            .filter((row) => `${row.brand} ${row.model} ${row.storage} ${row.color}`.toUpperCase().includes(token))
+            .slice(0, 8)
+            .map((row) => ({ kind: "model", row }));
+    }
+
+    function renderRetailSuggestions(query) {
+        const results = buildRetailSuggestions(query);
+        if (!retailSearchSuggest) return results;
+        if (!String(query || "").trim()) {
+            retailSearchSuggest.innerHTML = "";
+            setRetailSuggestVisibility(false);
+            return [];
+        }
+        if (!results.length) {
+            retailSearchSuggest.innerHTML = `<div class="smart-search-empty">{{ txt('No match found', 'কোনো মিল পাওয়া যায়নি') }}</div>`;
+            setRetailSuggestVisibility(true);
+            return [];
+        }
+
+        retailSearchSuggest.innerHTML = results
+            .map((item, index) => {
+                if (item.kind === "imei") {
+                    const row = item.row;
+                    return `
+                        <button type="button" class="smart-search-item" data-kind="imei" data-value="${escapeRetailHtml(row.value)}" ${index === 0 ? 'data-primary="1"' : ""}>
+                            <strong>${escapeRetailHtml(row.imei)}</strong>
+                            <span>${escapeRetailHtml([row.brand, row.model, row.storage, row.color].filter(Boolean).join(" | "))}</span>
+                        </button>
+                    `;
+                }
+
+                const row = item.row;
+                return `
+                    <button type="button" class="smart-search-item" data-kind="model" data-model-key="${escapeRetailHtml(row.key)}" ${index === 0 ? 'data-primary="1"' : ""}>
+                        <strong>${escapeRetailHtml([row.brand, row.model].filter(Boolean).join(" "))}</strong>
+                        <span>${escapeRetailHtml([row.storage, row.color, `${row.count} {{ txt('items', 'আইটেম') }}`].filter(Boolean).join(" | "))}</span>
+                    </button>
+                `;
+            })
+            .join("");
+        setRetailSuggestVisibility(true);
+        return results;
+    }
+
+    function applyRetailSuggestion(node) {
+        if (!node) return;
+        const kind = node.dataset.kind || "";
+        if (kind === "imei") {
+            const value = node.dataset.value || "";
+            if (!value) return;
+            retailSelect.value = value;
+            retailSearchInput.value = value;
+            appendImeiToBulk(value);
+            setRetailSuggestVisibility(false);
+            return;
+        }
+
+        if (kind === "model") {
+            const key = node.dataset.modelKey || "";
+            const firstMatch = retailProducts.find((row) => row.modelKey === key);
+            if (!firstMatch) return;
+            retailSelect.value = firstMatch.value;
+            retailSearchInput.value = [firstMatch.brand, firstMatch.model].filter(Boolean).join(" ");
+            setRetailSuggestVisibility(false);
+        }
+    }
+
+    retailSearchInput.addEventListener("input", function () {
+        const text = retailSearchInput.value.trim();
+        if (!text) {
+            setRetailSuggestVisibility(false);
+            return;
+        }
+        renderRetailSuggestions(text);
+    });
+
+    retailSearchInput.addEventListener("change", function () {
+        const results = renderRetailSuggestions(retailSearchInput.value.trim());
+        if (!results.length) {
+            const selectedCode = selectFirstRetailMatch(retailSearchInput.value.trim()) || retailSearchInput.value.trim();
+            appendImeiToBulk(selectedCode);
+            setRetailSuggestVisibility(false);
+        }
+    });
+
+    retailSearchInput.addEventListener("scan:applied", function () {
+        const selectedCode = selectFirstRetailMatch(retailSearchInput.value.trim()) || retailSearchInput.value.trim();
+        appendImeiToBulk(selectedCode);
+        setRetailSuggestVisibility(false);
+    });
+
+    retailSearchInput.addEventListener("focus", function () {
+        if (retailSearchInput.value.trim()) {
+            renderRetailSuggestions(retailSearchInput.value.trim());
+        }
+    });
+
+    retailSearchInput.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        const firstItem = retailSearchSuggest ? retailSearchSuggest.querySelector(".smart-search-item[data-primary='1'], .smart-search-item") : null;
+        if (firstItem) {
+            event.preventDefault();
+            applyRetailSuggestion(firstItem);
+        }
+    });
+
+    if (retailSearchBtn) {
+        retailSearchBtn.addEventListener("click", function () {
+            const value = retailSearchInput.value.trim();
+            if (!value) {
+                retailSearchInput.focus();
+                return;
+            }
+            const results = renderRetailSuggestions(value);
+            if (!results.length) {
+                const selectedCode = selectFirstRetailMatch(value) || value;
+                appendImeiToBulk(selectedCode);
+            }
+        });
+    }
+
+    if (retailSearchSuggest) {
+        retailSearchSuggest.addEventListener("click", function (event) {
+            const item = event.target.closest(".smart-search-item");
+            if (!item) return;
+            applyRetailSuggestion(item);
+        });
+        document.addEventListener("click", function (event) {
+            if (!retailSearchSuggest.contains(event.target) && !retailSearchInput.contains(event.target) && !(retailSearchBtn && retailSearchBtn.contains(event.target))) {
+                setRetailSuggestVisibility(false);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
