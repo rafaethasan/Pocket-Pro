@@ -157,6 +157,7 @@ python3 app.py --host 0.0.0.0 --port 5000
 ## Deploy (Render)
 1. এই project GitHub এ push করুন
 2. Render এ নতুন `Web Service` তৈরি করুন (GitHub repo connect)
+   - or use Render `Blueprint` with `render.yaml`
 3. Build command:
 ```bash
 pip install -r requirements.txt
@@ -170,6 +171,9 @@ gunicorn app:app
    - `INVENTORY_BACKUP_DIR=/var/data/backups`
    - `SOFTX_ADMIN_DB_PATH=/var/data/pocketpro_admin.db`
    - `SOFTX_TENANT_DATA_DIR=/var/data/pocketpro_tenants`
+6. Repo already includes:
+   - `render.yaml`
+   - `runtime.txt`
 
 ## Backup Commands
 Manual backup:

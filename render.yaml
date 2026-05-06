@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: pocketpro
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /
+    disk:
+      name: pocketpro-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: INVENTORY_DB_PATH
+        value: /var/data/pocketpro.db
+      - key: INVENTORY_BACKUP_DIR
+        value: /var/data/backups
+      - key: SOFTX_ADMIN_DB_PATH
+        value: /var/data/pocketpro_admin.db
+      - key: SOFTX_TENANT_DATA_DIR
+        value: /var/data/pocketpro_tenants
