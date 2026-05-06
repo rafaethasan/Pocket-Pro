@@ -61,6 +61,7 @@ _profile_upload_dir_env = os.getenv("SOFTX_PROFILE_UPLOAD_DIR", "").strip()
 _postgres_url_env = os.getenv("SOFTX_POSTGRES_URL", "").strip()
 _postgres_schema_env = os.getenv("SOFTX_POSTGRES_SCHEMA", "softx").strip()
 _redis_url_env = os.getenv("SOFTX_REDIS_URL", "redis://127.0.0.1:6379/0").strip()
+_pocket_legacy_base_url_env = os.getenv("POCKET_LEGACY_BASE_URL", "https://app.corexbd.com").strip()
 
 
 def _is_bad_host_path(raw_path: str) -> bool:
@@ -75,6 +76,9 @@ def _is_bad_host_path(raw_path: str) -> bool:
     if "/documents/inventory" in lowered:
         return True
     return False
+
+
+POCKET_LEGACY_BASE_URL = _pocket_legacy_base_url_env.rstrip("/")
 
 
 DB_PATH = (
@@ -2325,6 +2329,78 @@ def post_json_webhook(url: str, payload: dict[str, object]) -> tuple[bool, str]:
         return False, f"HTTP {exc.code}: {raw[:300]}"
     except Exception as exc:
         return False, str(exc)
+
+
+def _rewrite_proxy_header_value(raw_value: str) -> str:
+    if not raw_value:
+        return raw_value
+    current_origin = request.host_url.rstrip("/")
+    return (
+        raw_value
+        .replace("https://app.corexbd.com", current_origin)
+        .replace("http://app.corexbd.com", current_origin)
+        .replace("app.corexbd.com", request.host)
+    )
+
+
+def proxy_pocket_legacy_request(proxy_path: str):
+    safe_path = proxy_path.lstrip("/")
+    query_string = request.query_string.decode("utf-8", errors="ignore")
+    upstream_url = f"{POCKET_LEGACY_BASE_URL}/{safe_path}"
+    if query_string:
+        upstream_url = f"{upstream_url}?{query_string}"
+
+    body = request.get_data() if request.method not in {"GET", "HEAD"} else None
+    forwarded_headers: dict[str, str] = {
+        "User-Agent": request.headers.get("User-Agent", "PocketProProxy/1.0"),
+        "Accept": request.headers.get("Accept", "*/*"),
+    }
+    for header_name in ("Content-Type", "Cookie", "Authorization"):
+        header_value = request.headers.get(header_name, "").strip()
+        if header_value:
+            forwarded_headers[header_name] = header_value
+    forwarded_headers["X-Forwarded-Host"] = request.host
+    forwarded_headers["X-Forwarded-Proto"] = request.scheme
+
+    upstream_request = urllib.request.Request(
+        url=upstream_url,
+        data=body,
+        method=request.method,
+        headers=forwarded_headers,
+    )
+
+    try:
+        upstream_response = urllib.request.urlopen(upstream_request, timeout=30)
+        response_body = upstream_response.read()
+        status_code = int(upstream_response.status)
+        upstream_headers = upstream_response.headers
+    except urllib.error.HTTPError as exc:
+        response_body = exc.read()
+        status_code = int(exc.code)
+        upstream_headers = exc.headers
+    except Exception as exc:
+        return jsonify(
+            {
+                "ok": False,
+                "message": f"Pocket legacy upstream unavailable: {exc}",
+            }
+        ), 502
+
+    response = make_response(response_body, status_code)
+    skipped_headers = {"content-length", "transfer-encoding", "content-encoding", "connection"}
+
+    for header_name, header_value in upstream_headers.items():
+        lowered_name = header_name.lower()
+        if lowered_name in skipped_headers:
+            continue
+        if lowered_name == "set-cookie":
+            continue
+        response.headers[header_name] = _rewrite_proxy_header_value(header_value)
+
+    for cookie_value in upstream_headers.get_all("Set-Cookie") or []:
+        response.headers.add("Set-Cookie", _rewrite_proxy_header_value(cookie_value))
+
+    return response
 
 
 def run_subscription_automation(send_notifications: bool = True) -> dict[str, int]:
@@ -7052,6 +7128,9 @@ def enforce_authentication() -> object | None:
         "client_logout",
         "admin_logout",
         "set_language",
+        "pocket_native_compat_proxy",
+        "pocket_page_compat_proxy",
+        "pocket_web_compat_proxy",
         "billing_webhook_collect",
         "owner_login_alias",
         "shop_direct_login",
@@ -7127,6 +7206,21 @@ def set_language(lang: str):
     if get_current_tenant() is not None:
         return redirect(url_for("dashboard"))
     return redirect(url_for("login_selector"))
+
+
+@app.route("/api/pocket/native/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+def pocket_native_compat_proxy(proxy_path: str):
+    return proxy_pocket_legacy_request(f"api/pocket/native/{proxy_path}")
+
+
+@app.route("/pocket/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+def pocket_page_compat_proxy(proxy_path: str):
+    return proxy_pocket_legacy_request(f"pocket/{proxy_path}")
+
+
+@app.route("/pocket-pro/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+def pocket_web_compat_proxy(proxy_path: str):
+    return proxy_pocket_legacy_request(f"pocket-pro/{proxy_path}")
 
 
 @app.get("/login")
