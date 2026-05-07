@@ -33,3 +33,21 @@ SOFTX_TENANT_DATA_DIR=/var/data/pocketpro_tenants
 
 Do not hardcode hosting or mail passwords into app files.
 If you later migrate Pocket Pro to PostgreSQL or MySQL, set the SQL user/password only in hosting environment variables or your database panel.
+
+## Old User Migration
+
+Pocket Pro old user/account নতুন runtime-এ আনতে:
+
+1. old runtime-এ export run করুন:
+```bash
+python3 app.py --export-pocket-runtime
+```
+
+2. generated zip নতুন server-এ নিন
+
+3. নতুন runtime-এ import run করুন:
+```bash
+python3 app.py --import-pocket-runtime --runtime-package /absolute/path/pocketpro-runtime-YYYYMMDD-HHMMSS.zip
+```
+
+এই import main DB + admin DB + tenant DB folder restore করবে, তাই old user-রা same account দিয়ে login করতে পারবে।

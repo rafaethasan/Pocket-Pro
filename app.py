@@ -601,6 +601,12 @@ ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 BACKUP_PACKAGE_FORMAT_VERSION = 1
 BACKUP_PACKAGE_MANIFEST_NAME = "manifest.json"
 BACKUP_PACKAGE_DB_ARCHIVE_PATH = "tenant-data/tenant.sqlite"
+POCKET_RUNTIME_PACKAGE_TYPE = "POCKETPRO_RUNTIME_EXPORT"
+POCKET_RUNTIME_PACKAGE_FORMAT_VERSION = 1
+POCKET_RUNTIME_MANIFEST_NAME = "pocketpro-runtime-manifest.json"
+POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH = "runtime-data/pocketpro.db"
+POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH = "runtime-data/pocketpro_admin.db"
+POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH = "runtime-data/pocketpro_tenants"
 
 
 def slugify_text(value: str) -> str:
@@ -6787,6 +6793,262 @@ def restore_tenant_backup_package(uploaded_file: FileStorage) -> tuple[Path, dic
     return safety_backup_path, manifest_result
 
 
+def _runtime_file_sha256(path: Path) -> str:
+    if not path.exists() or not path.is_file():
+        return ""
+    return backup_file_sha256(path)
+
+
+def _collect_runtime_tenant_entries(tenant_dir: Path) -> list[dict[str, object]]:
+    if not tenant_dir.exists():
+        return []
+    entries: list[dict[str, object]] = []
+    for path in sorted(tenant_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        relative_path = path.relative_to(tenant_dir).as_posix()
+        entries.append(
+            {
+                "relative_path": relative_path,
+                "size_bytes": path.stat().st_size,
+                "sha256": _runtime_file_sha256(path),
+            }
+        )
+    return entries
+
+
+def build_pocket_runtime_manifest(
+    source_main_db: Path,
+    source_admin_db: Path,
+    source_tenant_dir: Path,
+) -> dict[str, object]:
+    tenant_files = _collect_runtime_tenant_entries(source_tenant_dir)
+    return {
+        "package_type": POCKET_RUNTIME_PACKAGE_TYPE,
+        "format_version": POCKET_RUNTIME_PACKAGE_FORMAT_VERSION,
+        "software": "Pocket Pro",
+        "created_at": now_sqlite_text(),
+        "runtime": {
+            "main_db": {
+                "archive_path": POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH,
+                "filename": source_main_db.name,
+                "sha256": _runtime_file_sha256(source_main_db),
+                "size_bytes": source_main_db.stat().st_size if source_main_db.exists() else 0,
+            },
+            "admin_db": {
+                "archive_path": POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH,
+                "filename": source_admin_db.name,
+                "sha256": _runtime_file_sha256(source_admin_db),
+                "size_bytes": source_admin_db.stat().st_size if source_admin_db.exists() else 0,
+            },
+            "tenant_dir": {
+                "archive_root": POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH,
+                "directory_name": source_tenant_dir.name,
+                "file_count": len(tenant_files),
+            },
+        },
+        "tenant_files": tenant_files,
+    }
+
+
+def create_pocket_runtime_export_package(
+    *,
+    source_main_db: Path | None = None,
+    source_admin_db: Path | None = None,
+    source_tenant_dir: Path | None = None,
+    output_dir: Path | None = None,
+) -> Path:
+    main_db = (source_main_db or DB_PATH).expanduser()
+    admin_db = (source_admin_db or ADMIN_DB_PATH).expanduser()
+    tenant_dir = (source_tenant_dir or TENANT_DATA_DIR).expanduser()
+
+    if not main_db.exists():
+        raise FileNotFoundError(f"Main Pocket Pro DB not found: {main_db}")
+    if not admin_db.exists():
+        raise FileNotFoundError(f"Admin Pocket Pro DB not found: {admin_db}")
+    if not tenant_dir.exists():
+        raise FileNotFoundError(f"Pocket Pro tenant directory not found: {tenant_dir}")
+
+    export_dir = (output_dir or BACKUP_DIR).expanduser()
+    export_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    package_path = export_dir / f"pocketpro-runtime-{timestamp}.zip"
+
+    with tempfile.TemporaryDirectory(prefix="pocketpro-runtime-export-", dir=str(export_dir)) as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        runtime_root = temp_dir / "runtime-data"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+
+        main_copy = runtime_root / Path(POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH).name
+        admin_copy = runtime_root / Path(POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH).name
+        with sqlite3.connect(main_db) as source, sqlite3.connect(main_copy) as target:
+            source.backup(target)
+        with sqlite3.connect(admin_db) as source, sqlite3.connect(admin_copy) as target:
+            source.backup(target)
+
+        tenant_copy_root = runtime_root / Path(POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH).name
+        shutil.copytree(tenant_dir, tenant_copy_root, dirs_exist_ok=True)
+
+        manifest_payload = build_pocket_runtime_manifest(
+            source_main_db=main_copy,
+            source_admin_db=admin_copy,
+            source_tenant_dir=tenant_copy_root,
+        )
+        manifest_path = temp_dir / POCKET_RUNTIME_MANIFEST_NAME
+        manifest_path.write_text(json.dumps(manifest_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        with zipfile.ZipFile(package_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(main_copy, POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH)
+            archive.write(admin_copy, POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH)
+            archive.write(manifest_path, POCKET_RUNTIME_MANIFEST_NAME)
+            for path in sorted(tenant_copy_root.rglob("*")):
+                if not path.is_file():
+                    continue
+                relative_path = path.relative_to(tenant_copy_root).as_posix()
+                archive.write(path, f"{POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH}/{relative_path}")
+
+    return package_path
+
+
+def restore_pocket_runtime_export_package(
+    package_path: Path,
+    *,
+    target_main_db: Path | None = None,
+    target_admin_db: Path | None = None,
+    target_tenant_dir: Path | None = None,
+) -> tuple[Path | None, dict[str, object]]:
+    source_package = package_path.expanduser()
+    if not source_package.exists():
+        raise FileNotFoundError(f"Pocket Pro runtime package not found: {source_package}")
+
+    main_db = (target_main_db or DB_PATH).expanduser()
+    admin_db = (target_admin_db or ADMIN_DB_PATH).expanduser()
+    tenant_dir = (target_tenant_dir or TENANT_DATA_DIR).expanduser()
+    main_db.parent.mkdir(parents=True, exist_ok=True)
+    admin_db.parent.mkdir(parents=True, exist_ok=True)
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+
+    safety_backup: Path | None = None
+    if main_db.exists() and admin_db.exists():
+        try:
+            safety_backup = create_pocket_runtime_export_package(
+                source_main_db=main_db,
+                source_admin_db=admin_db,
+                source_tenant_dir=tenant_dir,
+                output_dir=BACKUP_DIR,
+            )
+        except Exception:
+            safety_backup = None
+
+    with tempfile.TemporaryDirectory(prefix="pocketpro-runtime-import-", dir=str(BACKUP_DIR)) as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        with zipfile.ZipFile(source_package, "r") as archive:
+            archive_names = set(archive.namelist())
+            required_entries = {
+                POCKET_RUNTIME_MANIFEST_NAME,
+                POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH,
+                POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH,
+            }
+            missing = sorted(item for item in required_entries if item not in archive_names)
+            if missing:
+                raise ValueError(f"Runtime package missing required entries: {', '.join(missing)}")
+
+            extract_backup_archive_member(archive, POCKET_RUNTIME_MANIFEST_NAME, temp_dir)
+            extract_backup_archive_member(archive, POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH, temp_dir)
+            extract_backup_archive_member(archive, POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH, temp_dir)
+
+            manifest_path = temp_dir / POCKET_RUNTIME_MANIFEST_NAME
+            try:
+                manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Runtime package manifest invalid: {exc}") from exc
+
+            if str(manifest_payload.get("package_type") or "") != POCKET_RUNTIME_PACKAGE_TYPE:
+                raise ValueError("This file is not a Pocket Pro runtime export package.")
+            if int(manifest_payload.get("format_version") or 0) > POCKET_RUNTIME_PACKAGE_FORMAT_VERSION:
+                raise ValueError("Runtime package is newer than this importer.")
+
+            runtime_payload = manifest_payload.get("runtime") if isinstance(manifest_payload.get("runtime"), dict) else {}
+            tenant_file_entries = (
+                manifest_payload.get("tenant_files") if isinstance(manifest_payload.get("tenant_files"), list) else []
+            )
+
+            main_payload = runtime_payload.get("main_db") if isinstance(runtime_payload.get("main_db"), dict) else {}
+            admin_payload = runtime_payload.get("admin_db") if isinstance(runtime_payload.get("admin_db"), dict) else {}
+
+            extracted_main = temp_dir / POCKET_RUNTIME_MAIN_DB_ARCHIVE_PATH
+            extracted_admin = temp_dir / POCKET_RUNTIME_ADMIN_DB_ARCHIVE_PATH
+            if str(main_payload.get("sha256") or "").strip():
+                actual_sha = backup_file_sha256(extracted_main)
+                if actual_sha.lower() != str(main_payload.get("sha256") or "").strip().lower():
+                    raise ValueError("Runtime package main DB hash mismatch.")
+            if str(admin_payload.get("sha256") or "").strip():
+                actual_sha = backup_file_sha256(extracted_admin)
+                if actual_sha.lower() != str(admin_payload.get("sha256") or "").strip().lower():
+                    raise ValueError("Runtime package admin DB hash mismatch.")
+
+            for entry in tenant_file_entries:
+                if not isinstance(entry, dict):
+                    continue
+                relative_path = str(entry.get("relative_path") or "").strip()
+                if not relative_path:
+                    continue
+                archive_path = f"{POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH}/{relative_path}"
+                if archive_path not in archive_names:
+                    raise ValueError(f"Runtime package missing tenant file: {relative_path}")
+                extract_backup_archive_member(archive, archive_path, temp_dir)
+                expected_sha = str(entry.get("sha256") or "").strip().lower()
+                if expected_sha:
+                    extracted_file = temp_dir / archive_path
+                    actual_sha = backup_file_sha256(extracted_file)
+                    if actual_sha.lower() != expected_sha:
+                        raise ValueError(f"Runtime package tenant file hash mismatch: {relative_path}")
+
+        active_db = g.pop("db", None) if has_request_context() else None
+        if active_db is not None:
+            try:
+                active_db.close()
+            except Exception:
+                pass
+        active_admin_db = g.pop("admin_db", None) if has_request_context() else None
+        if active_admin_db is not None:
+            try:
+                active_admin_db.close()
+            except Exception:
+                pass
+
+        with sqlite3.connect(extracted_main) as source, sqlite3.connect(main_db) as target:
+            source.backup(target)
+        with sqlite3.connect(extracted_admin) as source, sqlite3.connect(admin_db) as target:
+            source.backup(target)
+
+        if tenant_dir.exists():
+            shutil.rmtree(tenant_dir)
+        tenant_dir.mkdir(parents=True, exist_ok=True)
+
+        extracted_tenant_root = temp_dir / POCKET_RUNTIME_TENANT_DIR_ARCHIVE_PATH
+        copied_tenant_files = 0
+        if extracted_tenant_root.exists():
+            for path in sorted(extracted_tenant_root.rglob("*")):
+                if not path.is_file():
+                    continue
+                relative_path = path.relative_to(extracted_tenant_root)
+                destination = tenant_dir / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, destination)
+                copied_tenant_files += 1
+
+    init_admin_db()
+    init_db()
+    return safety_backup, {
+        "main_db": str(main_db),
+        "admin_db": str(admin_db),
+        "tenant_dir": str(tenant_dir),
+        "tenant_file_count": copied_tenant_files,
+        "safety_backup": str(safety_backup) if safety_backup is not None else "",
+    }
+
+
 def create_database_backup(
     trigger_type: str = "MANUAL",
     sync_google: bool = False,
@@ -7158,6 +7420,9 @@ def enforce_authentication() -> object | None:
         "pocket_native_compat_proxy",
         "pocket_page_compat_proxy",
         "pocket_web_compat_proxy",
+        "pocket_terms_of_use",
+        "pocket_privacy_policy",
+        "pocket_pro_open",
         "billing_webhook_collect",
         "owner_login_alias",
         "shop_direct_login",
@@ -7981,7 +8246,7 @@ def client_register():
         if is_pocket_profile:
             owner_name = pocket_full_name
             shop_name = pocket_user_name
-            username = pocket_login_id or username
+            username = pocket_login_id or normalize_username(pocket_user_name) or username
             selected_primary_business = "POCKET_MONEY"
             selected_modules = ["POCKET_MONEY"]
             monthly_fee = 99.0
@@ -17902,6 +18167,21 @@ if __name__ == "__main__":
     parser.add_argument("--sync-tenants-postgres", action="store_true", help="Sync all tenant DBs to PostgreSQL")
     parser.add_argument("--harden-tenant-indexes", action="store_true", help="Apply index hardening to all tenants")
     parser.add_argument(
+        "--export-pocket-runtime",
+        action="store_true",
+        help="Export Pocket Pro main/admin/tenant runtime into one migration zip",
+    )
+    parser.add_argument(
+        "--import-pocket-runtime",
+        action="store_true",
+        help="Import Pocket Pro main/admin/tenant runtime from one migration zip",
+    )
+    parser.add_argument(
+        "--runtime-package",
+        default="",
+        help="Pocket Pro runtime zip path for --import-pocket-runtime",
+    )
+    parser.add_argument(
         "--sqlite-db",
         default="",
         help="SQLite DB path for migration (default: main INVENTORY_DB_PATH)",
@@ -17941,6 +18221,30 @@ if __name__ == "__main__":
             )
         except Exception as exc:
             print(f"Main PostgreSQL migration failed: {exc}")
+            raise SystemExit(1)
+    elif args.export_pocket_runtime:
+        try:
+            package_path = create_pocket_runtime_export_package()
+            print(f"Pocket Pro runtime export ready: {package_path}")
+            print("This zip contains main DB, admin DB, and all tenant DB files.")
+        except Exception as exc:
+            print(f"Pocket Pro runtime export failed: {exc}")
+            raise SystemExit(1)
+    elif args.import_pocket_runtime:
+        if not args.runtime_package:
+            print("--runtime-package is required with --import-pocket-runtime")
+            raise SystemExit(1)
+        try:
+            safety_backup, result = restore_pocket_runtime_export_package(Path(args.runtime_package))
+            print("Pocket Pro runtime import completed.")
+            print(f"Main DB: {result['main_db']}")
+            print(f"Admin DB: {result['admin_db']}")
+            print(f"Tenant Dir: {result['tenant_dir']}")
+            print(f"Tenant files copied: {result['tenant_file_count']}")
+            if safety_backup is not None:
+                print(f"Automatic safety backup: {safety_backup}")
+        except Exception as exc:
+            print(f"Pocket Pro runtime import failed: {exc}")
             raise SystemExit(1)
     elif args.backup:
         path, status, message = create_database_backup("CLI", sync_google=args.sync_google)

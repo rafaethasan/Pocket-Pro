@@ -146,6 +146,27 @@ Recommended env:
 - `SOFTX_ADMIN_DB_PATH=/var/data/pocketpro_admin.db`
 - `SOFTX_TENANT_DATA_DIR=/var/data/pocketpro_tenants`
 
+## Pocket Pro Old User Migration
+যদি `app.corexbd.com` থেকে old Pocket Pro user/account নতুন `pocketpro.corexbd.com` runtime-এ আনতে চান, এখন full runtime export/import command আছে।
+
+Old runtime থেকে export:
+```bash
+python3 app.py --export-pocket-runtime
+```
+
+এতে একটা zip হবে:
+- main DB
+- admin DB
+- সব tenant DB files
+
+New Pocket Pro runtime-এ import:
+```bash
+python3 app.py --import-pocket-runtime --runtime-package /absolute/path/pocketpro-runtime-YYYYMMDD-HHMMSS.zip
+```
+
+Import-এর আগে system automatic safety backup নেওয়ার চেষ্টা করবে।
+এই migration করলে old user login, tenant mapping, আর account data নতুন runtime-এ carry হবে।
+
 ## Quick Demo (Mobile সহ)
 1. একই Wi-Fi তে laptop + mobile রাখুন
 2. চালান:
