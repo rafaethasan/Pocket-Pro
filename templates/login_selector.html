@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#0f8a6f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Soft X">
-    <title>{{ txt('Login & Registration', 'লগইন ও রেজিস্ট্রেশন') }} | Soft X</title>
+    <meta name="apple-mobile-web-app-title" content="{{ public_brand_name }}">
+    <title>{{ txt('Login & Registration', 'লগইন ও রেজিস্ট্রেশন') }} | {{ public_brand_name }}</title>
     <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
@@ -328,7 +328,7 @@
             <div class="gateway-top">
                 <div class="gateway-brand">
                     <i class="fa-solid fa-shield-halved"></i>
-                    <span>Soft X</span>
+                    <span>{{ public_brand_name }}</span>
                 </div>
                 <div class="gateway-lang">
                     <a class="top-action-link {% if ui_lang == 'bn' %}lang-active{% endif %}" href="{{ url_for('set_language', lang='bn', next=request.full_path) }}"><i class="fa-solid fa-language"></i>বাংলা</a>
@@ -338,7 +338,13 @@
 
             <div class="gateway-headline">
                 <h2>{{ txt('Create Account / Login', 'Create Account / Login') }}</h2>
-                <p>{{ txt('Select module card, then use the form below.', 'মডিউল কার্ড সিলেক্ট করুন, তারপর নিচের ফর্ম ব্যবহার করুন।') }}</p>
+                <p>
+                    {% if public_brand_is_pocket %}
+                        {{ txt('Pocket Pro only runs here. Login or create your Pocket Pro account below.', 'এখানে শুধু Pocket Pro চলবে। নিচে Pocket Pro account দিয়ে login বা create করুন।') }}
+                    {% else %}
+                        {{ txt('Select module card, then use the form below.', 'মডিউল কার্ড সিলেক্ট করুন, তারপর নিচের ফর্ম ব্যবহার করুন।') }}
+                    {% endif %}
+                </p>
             </div>
 
             <div class="gateway-view-switch">
@@ -361,6 +367,7 @@
                 {% endif %}
             {% endwith %}
 
+            {% if not public_brand_is_pocket %}
             <div class="gateway-module-grid">
                 {% for item in business_modules %}
                 {% if item.public_enabled %}
@@ -385,6 +392,7 @@
             <div class="gateway-selected-info">
                 <span><i class="fa-solid fa-circle-info"></i> {{ txt('Live launch is focused on Mobile Wholesale. Other modules stay marked as Coming Soon for now.', 'Live launch এখন Mobile Wholesale-এ focused। বাকি module আপাতত Coming Soon হিসেবে রাখা হয়েছে।') }}</span>
             </div>
+            {% endif %}
 
             <section class="gateway-form-wrap">
                 <div class="gateway-selected-info">
@@ -513,9 +521,11 @@
                     <i class="fa-solid fa-right-to-bracket"></i> {{ txt('Already have account? Login', 'একাউন্ট আছে? লগইন করুন') }}
                 </a>
                 {% endif %}
+                {% if not public_brand_is_pocket %}
                 <a href="{{ url_for('superadmin_login') }}">
                     <i class="fa-solid fa-user-shield"></i> {{ txt('Software Admin', 'সফটওয়্যার অ্যাডমিন') }}
                 </a>
+                {% endif %}
             </div>
         </section>
     </div>

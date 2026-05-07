@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#0f8a6f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Soft X">
-    <title>{{ txt('Shop Login', 'শপ লগইন') }} | Soft X</title>
+    <meta name="apple-mobile-web-app-title" content="{{ public_brand_name }}">
+    <title>{{ txt('Shop Login', 'শপ লগইন') }} | {{ public_brand_name }}</title>
     <link rel="manifest" href="{{ url_for('manifest_webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
@@ -151,6 +151,7 @@
                     {{ txt('Selected module: Shop / Business.', 'Selected module: Shop / Business.') }}
                 {% endif %}
             </p>
+            {% if not public_brand_is_pocket %}
             <div class="auth-role-switch-grid compact">
                 <a
                     class="auth-role-tile role-user {% if module_profile != 'POCKET' %}active{% endif %}"
@@ -169,6 +170,7 @@
                     <small>{{ txt('Pocket Money Flow', 'পকেট মানি ফ্লো') }}</small>
                 </a>
             </div>
+            {% endif %}
             {% set effective_mode = ('admin' if module_profile == 'POCKET' else (mode or 'user')) %}
             {% if module_profile != 'POCKET' %}
             <div class="auth-role-switch-grid compact">
@@ -242,7 +244,7 @@
             </div>
             {% if module_profile != 'POCKET' %}
             <div class="helper-links">
-                <span class="muted-text">{{ txt('Need account? Contact Soft X Admin.', 'Account লাগলে Soft X Admin এর সাথে যোগাযোগ করুন।') }}</span>
+                <span class="muted-text">{{ txt('Need account? Contact admin.', 'Account লাগলে admin-এর সাথে যোগাযোগ করুন।') }}</span>
             </div>
             {% endif %}
         </section>

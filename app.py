@@ -572,6 +572,15 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.getenv("SOFTX_SESSION_SECURE", "0").strip() == "1"
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
+
+@app.context_processor
+def inject_public_branding() -> dict[str, object]:
+    pocket_host = is_pocket_public_host()
+    return {
+        "public_brand_name": "Pocket Pro" if pocket_host else "Soft X",
+        "public_brand_is_pocket": pocket_host,
+    }
+
 PRIVATE_RECEIVER_UPLOAD_DIR = (
     Path(_receiver_upload_dir_env)
     if _receiver_upload_dir_env
@@ -702,6 +711,17 @@ def get_business_module_options() -> list[dict[str, str]]:
             }
         )
     return options
+
+
+def current_request_hostname() -> str:
+    if not has_request_context():
+        return ""
+    return (request.host or "").split(":", 1)[0].strip().lower()
+
+
+def is_pocket_public_host() -> bool:
+    host = current_request_hostname()
+    return host == "pocketpro.corexbd.com" or host.startswith("pocketpro.")
 
 
 def is_public_launch_module_enabled(module_key: str | None) -> bool:
@@ -7241,26 +7261,32 @@ def login_selector():
     if not next_path.startswith("/") or next_path.startswith("//"):
         next_path = ""
 
-    module_from_query = normalize_business_module(request.args.get("module", ""), default="")
-    module_profile_arg = normalize_module_profile(request.args.get("profile", MODULE_PROFILE_ALL), default=MODULE_PROFILE_ALL)
-
-    if module_from_query:
-        selected_module = module_from_query
-    elif module_profile_arg == MODULE_PROFILE_POCKET:
+    if is_pocket_public_host():
         selected_module = "POCKET_MONEY"
-    else:
-        selected_module = DEFAULT_PRIMARY_BUSINESS
-
-    if not is_public_launch_module_enabled(selected_module):
-        selected_module = DEFAULT_PRIMARY_BUSINESS
-
-    if selected_module == "POCKET_MONEY":
         module_profile = MODULE_PROFILE_POCKET
         mode = "admin"
+        business_modules = [item for item in get_business_module_options() if str(item["key"]) == "POCKET_MONEY"]
     else:
-        module_profile = MODULE_PROFILE_BUSINESS
+        module_from_query = normalize_business_module(request.args.get("module", ""), default="")
+        module_profile_arg = normalize_module_profile(request.args.get("profile", MODULE_PROFILE_ALL), default=MODULE_PROFILE_ALL)
 
-    business_modules = get_business_module_options()
+        if module_from_query:
+            selected_module = module_from_query
+        elif module_profile_arg == MODULE_PROFILE_POCKET:
+            selected_module = "POCKET_MONEY"
+        else:
+            selected_module = DEFAULT_PRIMARY_BUSINESS
+
+        if not is_public_launch_module_enabled(selected_module):
+            selected_module = DEFAULT_PRIMARY_BUSINESS
+
+        if selected_module == "POCKET_MONEY":
+            module_profile = MODULE_PROFILE_POCKET
+            mode = "admin"
+        else:
+            module_profile = MODULE_PROFILE_BUSINESS
+
+        business_modules = get_business_module_options()
     selected_module_info = next(
         (item for item in business_modules if str(item["key"]) == selected_module),
         next((item for item in business_modules if str(item["key"]) == DEFAULT_PRIMARY_BUSINESS), business_modules[0]),
@@ -7287,7 +7313,12 @@ def client_login_user_entry():
     )
     next_path = request.args.get("next", "").strip()
     module_profile = normalize_module_profile(request.args.get("profile", MODULE_PROFILE_BUSINESS))
-    redirect_kwargs: dict[str, str] = {"mode": "user", "profile": module_profile.lower()}
+    if is_pocket_public_host():
+        module_profile = MODULE_PROFILE_POCKET
+    redirect_kwargs: dict[str, str] = {
+        "mode": "admin" if module_profile == MODULE_PROFILE_POCKET else "user",
+        "profile": module_profile.lower(),
+    }
     if login_hint:
         redirect_kwargs["login"] = login_hint
     if next_path.startswith("/") and not next_path.startswith("//"):
@@ -7302,6 +7333,8 @@ def client_login_admin_entry():
     )
     next_path = request.args.get("next", "").strip()
     module_profile = normalize_module_profile(request.args.get("profile", MODULE_PROFILE_BUSINESS))
+    if is_pocket_public_host():
+        module_profile = MODULE_PROFILE_POCKET
     redirect_kwargs: dict[str, str] = {"mode": "admin", "profile": module_profile.lower()}
     if login_hint:
         redirect_kwargs["login"] = login_hint
@@ -7318,30 +7351,32 @@ def forgot_password():
     if is_superadmin_logged_in():
         return redirect(url_for("admin_accounts"))
 
-    module_from_query = normalize_business_module(request.values.get("module", ""), default="")
-    module_profile = normalize_module_profile(
-        request.values.get("profile", MODULE_PROFILE_ALL),
-        default=MODULE_PROFILE_ALL,
-    )
-
-    if module_from_query:
-        selected_module = module_from_query
-    elif module_profile == MODULE_PROFILE_POCKET:
-        selected_module = "POCKET_MONEY"
-    else:
-        selected_module = DEFAULT_PRIMARY_BUSINESS
-
-    if selected_module == "POCKET_MONEY":
-        module_profile = MODULE_PROFILE_POCKET
-        mode = "admin"
-    else:
-        module_profile = MODULE_PROFILE_BUSINESS
-
     mode = (request.values.get("mode", "user") or "user").strip().lower()
     if mode not in {"admin", "user"}:
         mode = "user"
-    if selected_module == "POCKET_MONEY":
+    if is_pocket_public_host():
+        selected_module = "POCKET_MONEY"
+        module_profile = MODULE_PROFILE_POCKET
         mode = "admin"
+    else:
+        module_from_query = normalize_business_module(request.values.get("module", ""), default="")
+        module_profile = normalize_module_profile(
+            request.values.get("profile", MODULE_PROFILE_ALL),
+            default=MODULE_PROFILE_ALL,
+        )
+
+        if module_from_query:
+            selected_module = module_from_query
+        elif module_profile == MODULE_PROFILE_POCKET:
+            selected_module = "POCKET_MONEY"
+        else:
+            selected_module = DEFAULT_PRIMARY_BUSINESS
+
+        if selected_module == "POCKET_MONEY":
+            module_profile = MODULE_PROFILE_POCKET
+            mode = "admin"
+        else:
+            module_profile = MODULE_PROFILE_BUSINESS
     next_path = request.values.get("next", "").strip()
     if not next_path.startswith("/") or next_path.startswith("//"):
         next_path = ""
@@ -7406,7 +7441,12 @@ def client_login():
         default=MODULE_PROFILE_BUSINESS,
     )
     selected_module_key = normalize_business_module(request.values.get("module_key", ""), default="")
-    if module_profile == MODULE_PROFILE_POCKET:
+    if is_pocket_public_host():
+        module_profile = MODULE_PROFILE_POCKET
+        selected_module_key = "POCKET_MONEY"
+        mode = "admin"
+        forced_admin_login = True
+    elif module_profile == MODULE_PROFILE_POCKET:
         selected_module_key = "POCKET_MONEY"
         mode = "admin"
         forced_admin_login = True
@@ -7764,25 +7804,33 @@ def client_register():
     if is_superadmin_logged_in():
         return redirect(url_for("admin_accounts"))
 
+    force_pocket_host = is_pocket_public_host()
     module_profile = normalize_module_profile(
-        request.values.get("profile", request.values.get("module_profile", MODULE_PROFILE_BUSINESS)),
-        default=MODULE_PROFILE_BUSINESS,
+        request.values.get(
+            "profile",
+            request.values.get(
+                "module_profile",
+                MODULE_PROFILE_POCKET if force_pocket_host else MODULE_PROFILE_BUSINESS,
+            ),
+        ),
+        default=MODULE_PROFILE_POCKET if force_pocket_host else MODULE_PROFILE_BUSINESS,
     )
-    if module_profile == MODULE_PROFILE_POCKET:
+    if not force_pocket_host and module_profile == MODULE_PROFILE_POCKET:
         module_profile = MODULE_PROFILE_BUSINESS
     selected_module_key = normalize_business_module(request.values.get("module_key", ""), default="")
-    if selected_module_key == "POCKET_MONEY":
+    if force_pocket_host:
+        selected_module_key = "POCKET_MONEY"
+    elif selected_module_key == "POCKET_MONEY":
         selected_module_key = ""
-    if selected_module_key and not is_public_launch_module_enabled(selected_module_key):
+    if (not force_pocket_host) and selected_module_key and not is_public_launch_module_enabled(selected_module_key):
         selected_module_key = DEFAULT_PRIMARY_BUSINESS
     gateway_mode = request.values.get("gateway", "").strip() == "1"
     is_pocket_profile = module_profile == MODULE_PROFILE_POCKET
 
-    business_modules = [
-        item
-        for item in get_business_module_options()
-        if item["key"] != "POCKET_MONEY"
-    ]
+    if force_pocket_host:
+        business_modules = [item for item in get_business_module_options() if item["key"] == "POCKET_MONEY"]
+    else:
+        business_modules = [item for item in get_business_module_options() if item["key"] != "POCKET_MONEY"]
     if not business_modules:
         business_modules = get_business_module_options()
 
@@ -7815,17 +7863,19 @@ def client_register():
     if request.method == "POST":
         module_profile = normalize_module_profile(
             request.form.get("module_profile", module_profile),
-            default=MODULE_PROFILE_BUSINESS,
+            default=MODULE_PROFILE_POCKET if force_pocket_host else MODULE_PROFILE_BUSINESS,
         )
-        if module_profile == MODULE_PROFILE_POCKET:
+        if not force_pocket_host and module_profile == MODULE_PROFILE_POCKET:
             module_profile = MODULE_PROFILE_BUSINESS
         selected_module_key = normalize_business_module(
             request.form.get("module_key", selected_module_key),
             default="",
         )
-        if selected_module_key == "POCKET_MONEY":
+        if force_pocket_host:
+            selected_module_key = "POCKET_MONEY"
+        elif selected_module_key == "POCKET_MONEY":
             selected_module_key = ""
-        if selected_module_key and not is_public_launch_module_enabled(selected_module_key):
+        if (not force_pocket_host) and selected_module_key and not is_public_launch_module_enabled(selected_module_key):
             selected_module_key = DEFAULT_PRIMARY_BUSINESS
         is_pocket_profile = module_profile == MODULE_PROFILE_POCKET
 
