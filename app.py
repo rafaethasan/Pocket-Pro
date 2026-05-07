@@ -716,7 +716,14 @@ def get_business_module_options() -> list[dict[str, str]]:
 def current_request_hostname() -> str:
     if not has_request_context():
         return ""
-    return (request.host or "").split(":", 1)[0].strip().lower()
+    forwarded_host = (
+        request.headers.get("X-Forwarded-Host", "")
+        or request.headers.get("X-Original-Host", "")
+        or request.headers.get("Host", "")
+        or request.host
+        or ""
+    )
+    return forwarded_host.split(",", 1)[0].split(":", 1)[0].strip().lower()
 
 
 def is_pocket_public_host() -> bool:
@@ -7241,6 +7248,87 @@ def pocket_page_compat_proxy(proxy_path: str):
 @app.route("/pocket-pro/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 def pocket_web_compat_proxy(proxy_path: str):
     return proxy_pocket_legacy_request(f"pocket-pro/{proxy_path}")
+
+
+@app.get("/pocket/terms-of-use")
+def pocket_terms_of_use():
+    if not is_pocket_public_host():
+        return proxy_pocket_legacy_request("pocket/terms-of-use")
+    return make_response(
+        render_template(
+            "pocket_static_page.html",
+            page_title="Terms of Use",
+            page_heading="Pocket Pro Terms of Use",
+            intro_text="Pocket Pro is a personal money manager for budgets, reminders, goals, loans, and installment tracking.",
+            sections=[
+                (
+                    "Account use",
+                    [
+                        "Use one account per person and keep your password private.",
+                        "You are responsible for the entries, reminders, and records saved in your account.",
+                    ],
+                ),
+                (
+                    "Data and backup",
+                    [
+                        "Pocket Pro stores your finance information to help you review balances, budgets, reminders, and goals.",
+                        "Keep your own backup/export habits active for extra safety.",
+                    ],
+                ),
+                (
+                    "Fair use",
+                    [
+                        "Do not misuse Pocket Pro for fraud, spam, or illegal activity.",
+                        "We may change or improve features over time to keep the app stable.",
+                    ],
+                ),
+            ],
+        )
+    )
+
+
+@app.get("/pocket/privacy-policy")
+def pocket_privacy_policy():
+    if not is_pocket_public_host():
+        return proxy_pocket_legacy_request("pocket/privacy-policy")
+    return make_response(
+        render_template(
+            "pocket_static_page.html",
+            page_title="Privacy Policy",
+            page_heading="Pocket Pro Privacy Policy",
+            intro_text="Pocket Pro only uses the information needed to support your money records, reminders, goals, and account access.",
+            sections=[
+                (
+                    "What we store",
+                    [
+                        "Basic account details such as email, username, and profile information.",
+                        "Your finance records, budgets, goals, reminders, and related app settings.",
+                    ],
+                ),
+                (
+                    "Why we store it",
+                    [
+                        "To show your account data, sync your app experience, and keep your records available when you sign in again.",
+                        "To improve stability, support, and product quality.",
+                    ],
+                ),
+                (
+                    "Your control",
+                    [
+                        "You can update your profile information inside the app.",
+                        "You can request removal or support help through the Pocket Pro support channel.",
+                    ],
+                ),
+            ],
+        )
+    )
+
+
+@app.get("/pocket-pro/open")
+def pocket_pro_open():
+    if is_pocket_public_host():
+        return redirect(url_for("login_selector"))
+    return proxy_pocket_legacy_request("pocket-pro/open")
 
 
 @app.get("/login")
