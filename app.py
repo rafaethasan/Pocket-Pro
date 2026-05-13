@@ -7418,6 +7418,13 @@ def enforce_authentication() -> object | None:
         "admin_logout",
         "set_language",
         "pocket_native_compat_proxy",
+        "pocket_native_auth_register",
+        "pocket_native_auth_login",
+        "pocket_native_auth_guest",
+        "pocket_native_auth_me",
+        "pocket_native_auth_logout",
+        "pocket_native_dashboard",
+        "pocket_native_categories",
         "pocket_page_compat_proxy",
         "pocket_web_compat_proxy",
         "pocket_terms_of_use",
@@ -7498,6 +7505,303 @@ def set_language(lang: str):
     if get_current_tenant() is not None:
         return redirect(url_for("dashboard"))
     return redirect(url_for("login_selector"))
+
+
+def pocket_native_category_items(kind: str) -> list[dict[str, object]]:
+    normalized = (kind or "").strip().lower()
+    if normalized == "income":
+        raw_items = [
+            ("salary", "Salary", "#58A6FF", "wallet"),
+            ("business_sales", "Business Sales", "#22c55e", "briefcase"),
+            ("service_income", "Service Income", "#06b6d4", "badge"),
+            ("other_income", "Other Income", "#8b5cf6", "sparkles"),
+        ]
+    else:
+        raw_items = [
+            ("food", "Food", "#ff8a4c", "utensils"),
+            ("transport", "Transport", "#38bdf8", "car"),
+            ("shopping", "Shopping", "#f472b6", "shopping_bag"),
+            ("bills", "Bills", "#f59e0b", "receipt"),
+        ]
+    return [
+        {
+            "key": key,
+            "label": label,
+            "colorHex": color,
+            "iconClass": "",
+            "iconKey": icon_key,
+        }
+        for key, label, color, icon_key in raw_items
+    ]
+
+
+def pocket_native_user_payload(
+    account: sqlite3.Row | dict[str, object] | None = None,
+    tenant_user: sqlite3.Row | dict[str, object] | None = None,
+) -> dict[str, object]:
+    username = row_value(tenant_user, "username", "") if tenant_user is not None else ""
+    if not username:
+        username = row_value(account, "username", "") if account is not None else "pocket"
+    full_name = row_value(tenant_user, "full_name", "") if tenant_user is not None else ""
+    if not full_name:
+        full_name = row_value(account, "owner_name", "") or row_value(account, "shop_name", "") or "Pocket Pro User"
+    initials = "".join(part[:1].upper() for part in str(full_name).split()[:2]).strip() or "PP"
+    return {
+        "tenantId": int(row_value(account, "id", 0) or 0) if account is not None else 0,
+        "userId": int(row_value(tenant_user, "id", 0) or 0) if tenant_user is not None else 0,
+        "username": str(username or ""),
+        "fullName": str(full_name or ""),
+        "email": str(username or "") if "@" in str(username or "") else "",
+        "bio": "",
+        "role": str(row_value(tenant_user, "role", "ADMIN") if tenant_user is not None else "ADMIN"),
+        "avatarUrl": "",
+        "avatarInitials": initials[:2],
+        "customAvatarKey": "",
+        "customAvatarUri": "",
+        "planCode": "FREE",
+        "planLabel": "Free",
+        "demoAccessEnabled": False,
+    }
+
+
+def pocket_native_current_auth() -> tuple[sqlite3.Row | None, dict[str, object] | None]:
+    tenant = get_current_tenant()
+    tenant_user = get_current_tenant_user()
+    if tenant is None or tenant_user is None:
+        return None, None
+    return tenant, pocket_native_user_payload(tenant, tenant_user)
+
+
+def pocket_native_find_account(login_identifier: str) -> sqlite3.Row | None:
+    clean_login = normalize_login_identifier(login_identifier)
+    if not clean_login:
+        return None
+    admin_db = get_admin_db()
+    try:
+        return admin_db.execute(
+            """
+            SELECT
+                id, shop_name, owner_name, phone, username, password_hash, is_active,
+                paid_until, billing_cycle, monthly_fee, db_path,
+                ui_language, primary_business, enabled_modules
+            FROM tenant_accounts
+            WHERE LOWER(username) = ? AND is_active = 1
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (clean_login,),
+        ).fetchone()
+    except sqlite3.Error:
+        init_admin_db()
+        return None
+
+
+@app.post("/api/pocket/native/auth/register")
+def pocket_native_auth_register():
+    payload = request.get_json(silent=True) or {}
+    email = str(payload.get("email") or "").strip().lower()
+    username = normalize_username(str(payload.get("username") or email or ""))
+    password = str(payload.get("password") or "")
+    confirm_password = str(payload.get("confirm_password") or "")
+    ui_language = normalize_language(str(payload.get("ui_language") or "")) or DEFAULT_UI_LANGUAGE
+
+    if len(username) < 4:
+        return jsonify(ok=False, message="Username must be at least 4 characters."), 400
+    if len(password) < 6:
+        return jsonify(ok=False, message="Password must be at least 6 characters."), 400
+    if password != confirm_password:
+        return jsonify(ok=False, message="Password and confirm password do not match."), 400
+
+    admin_db = get_admin_db()
+    db_path = tenant_db_path_for_username(username)
+    existing = admin_db.execute("SELECT id FROM tenant_accounts WHERE username = ?", (username,)).fetchone()
+    if existing is not None:
+        return jsonify(ok=False, message="This account already exists. Please login."), 409
+    if db_path.exists():
+        return jsonify(ok=False, message="Account data already exists. Please login."), 409
+
+    try:
+        init_db_for_path(db_path)
+        full_name = email.split("@")[0].replace(".", " ").replace("_", " ").title() if email else username
+        create_or_update_tenant_user(
+            db_path=db_path,
+            username="admin",
+            full_name=full_name,
+            role="ADMIN",
+            password=password,
+            is_active=True,
+        )
+        if username != "admin":
+            create_or_update_tenant_user(
+                db_path=db_path,
+                username=username,
+                full_name=full_name,
+                role="ADMIN",
+                password=password,
+                is_active=True,
+            )
+        admin_db.execute(
+            """
+            INSERT INTO tenant_accounts (
+                shop_name, owner_name, phone, username, password_hash, db_path,
+                ui_language, primary_business, enabled_modules,
+                billing_cycle, monthly_fee, paid_until, billing_note, is_active
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                username,
+                full_name,
+                "",
+                username,
+                make_password_hash(password),
+                str(db_path),
+                ui_language,
+                "POCKET_MONEY",
+                "POCKET_MONEY",
+                "MONTHLY",
+                0.0,
+                None,
+                "Pocket Pro native signup",
+            ),
+        )
+        tenant_id = int(admin_db.execute("SELECT last_insert_rowid()").fetchone()[0])
+        admin_db.commit()
+        account = pocket_native_find_account(username)
+        session.clear()
+        session["tenant_id"] = tenant_id
+        session["tenant_user_id"] = 1
+        session["ui_lang"] = ui_language
+        return jsonify(
+            ok=True,
+            message="Pocket Pro account created.",
+            user=pocket_native_user_payload(account, {"id": 1, "username": username, "full_name": full_name, "role": "ADMIN"}),
+        )
+    except Exception as exc:
+        admin_db.rollback()
+        return jsonify(ok=False, message=f"Registration failed: {exc}"), 500
+
+
+@app.post("/api/pocket/native/auth/login")
+def pocket_native_auth_login():
+    payload = request.get_json(silent=True) or {}
+    login_identifier = normalize_login_identifier(str(payload.get("login_identifier") or ""))
+    password = str(payload.get("password") or "")
+    account = pocket_native_find_account(login_identifier)
+    if account is None or not password_matches(str(row_value(account, "password_hash", "")), password):
+        return jsonify(ok=False, message="Login failed. Username/Email/Password check করুন।"), 401
+
+    admin_db = get_admin_db()
+    tenant_db_path = ensure_tenant_db_ready(admin_db, account)
+    tenant_user_payload = {"id": 1, "username": str(account["username"]), "full_name": str(account["owner_name"] or account["shop_name"]), "role": "ADMIN"}
+    if tenant_db_path is not None:
+        try:
+            with sqlite3.connect(tenant_db_path) as tenant_conn:
+                tenant_conn.row_factory = sqlite3.Row
+                ensure_tenant_users_table(tenant_conn)
+                tenant_user = tenant_conn.execute(
+                    """
+                    SELECT id, username, full_name, role, password_hash, is_active
+                    FROM users
+                    WHERE role = 'ADMIN' AND is_active = 1
+                    ORDER BY CASE WHEN LOWER(username) = 'admin' THEN 0 ELSE 1 END, id ASC
+                    LIMIT 1
+                    """
+                ).fetchone()
+                if tenant_user is not None:
+                    tenant_user_payload = {
+                        "id": int(tenant_user["id"]),
+                        "username": str(account["username"]),
+                        "full_name": str(tenant_user["full_name"] or account["owner_name"] or account["shop_name"]),
+                        "role": str(tenant_user["role"] or "ADMIN"),
+                    }
+        except sqlite3.Error:
+            pass
+
+    session.clear()
+    session["tenant_id"] = int(account["id"])
+    session["tenant_user_id"] = int(tenant_user_payload["id"])
+    session["ui_lang"] = normalize_language(str(account["ui_language"])) or DEFAULT_UI_LANGUAGE
+    return jsonify(ok=True, message="Login successful.", user=pocket_native_user_payload(account, tenant_user_payload))
+
+
+@app.post("/api/pocket/native/auth/guest")
+def pocket_native_auth_guest():
+    return jsonify(
+        ok=True,
+        message="Guest mode ready.",
+        user={
+            **pocket_native_user_payload(None, {"id": 0, "username": "guest", "full_name": "Pocket Guest", "role": "USER"}),
+            "demoAccessEnabled": True,
+        },
+    )
+
+
+@app.get("/api/pocket/native/auth/me")
+def pocket_native_auth_me():
+    _, user = pocket_native_current_auth()
+    if user is None:
+        return jsonify(ok=False, message="Not signed in."), 401
+    return jsonify(ok=True, message="", user=user)
+
+
+@app.post("/api/pocket/native/auth/logout")
+def pocket_native_auth_logout():
+    session.clear()
+    return jsonify(ok=True, message="Logged out.", user=None)
+
+
+@app.get("/api/pocket/native/dashboard")
+def pocket_native_dashboard():
+    _, user = pocket_native_current_auth()
+    currency_code = "BDT"
+    currency_symbol = "৳"
+    return jsonify(
+        ok=True,
+        message="Pocket Pro dashboard ready.",
+        user=user,
+        dashboard={
+            "currencyCode": currency_code,
+            "currencySymbol": currency_symbol,
+            "summary": {
+                "totalBalance": 0.0,
+                "monthIncome": 0.0,
+                "monthExpense": 0.0,
+                "todayIncome": 0.0,
+                "todayExpense": 0.0,
+                "budgetRemaining": 0.0,
+                "budgetAmount": 0.0,
+                "budgetSpent": 0.0,
+                "budgetUsedPercent": 0,
+                "goalSaved": 0.0,
+                "goalTarget": 0.0,
+                "goalProgressPercent": 0,
+                "accounts": 1,
+                "openingBalance": 0.0,
+            },
+            "accounts": [
+                {"id": 1, "name": "My Wallet", "type": "CASH", "openingBalance": 0.0, "currentBalance": 0.0, "isDefault": True}
+            ],
+            "analytics": {"categories": [], "weekly": []},
+            "recentActivity": [],
+            "reportsPdfUrl": "",
+        },
+    )
+
+
+@app.get("/api/pocket/native/categories")
+def pocket_native_categories():
+    kind = "income" if str(request.args.get("kind") or "").strip().lower() == "income" else "expense"
+    return jsonify(
+        ok=True,
+        message="Pocket Pro categories ready.",
+        categories={
+            "currentKind": kind,
+            "categories": pocket_native_category_items(kind),
+            "iconOptions": [],
+            "colorSwatches": ["#58A6FF", "#22c55e", "#06b6d4", "#f59e0b", "#f472b6", "#ff6a59", "#8b5cf6"],
+        },
+    )
 
 
 @app.route("/api/pocket/native/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
