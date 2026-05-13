@@ -7429,6 +7429,7 @@ def enforce_authentication() -> object | None:
         "pocket_web_compat_proxy",
         "pocket_terms_of_use",
         "pocket_privacy_policy",
+        "pocket_account_deletion",
         "pocket_pro_open",
         "billing_webhook_collect",
         "owner_login_alias",
@@ -7886,6 +7887,43 @@ def pocket_privacy_policy():
                     [
                         "You can update your profile information inside the app.",
                         "You can request removal or support help through the Pocket Pro support channel.",
+                    ],
+                ),
+            ],
+        )
+    )
+
+
+@app.get("/pocket/account-deletion")
+def pocket_account_deletion():
+    if not is_pocket_public_host():
+        return proxy_pocket_legacy_request("pocket/account-deletion")
+    return make_response(
+        render_template(
+            "pocket_static_page.html",
+            page_title="Account Deletion",
+            page_heading="Pocket Pro Account Deletion",
+            intro_text="Pocket Pro users can request account deletion and removal of stored account data from this page.",
+            sections=[
+                (
+                    "How to request deletion",
+                    [
+                        "Send an account deletion request from the email address used for your Pocket Pro account.",
+                        "Include your Pocket Pro username and write that you want your account and related app data deleted.",
+                    ],
+                ),
+                (
+                    "What will be deleted",
+                    [
+                        "Your account profile, finance records, budgets, goals, reminders, and app data connected to that Pocket Pro account.",
+                        "Some limited records may be retained only when required for legal, security, or abuse-prevention reasons.",
+                    ],
+                ),
+                (
+                    "Support contact",
+                    [
+                        "Email your deletion request to support@corexbd.com.",
+                        "Deletion requests are reviewed and processed as soon as reasonably possible.",
                     ],
                 ),
             ],
