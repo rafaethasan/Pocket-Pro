@@ -7427,7 +7427,21 @@ def enforce_authentication() -> object | None:
         "pocket_native_auth_me",
         "pocket_native_auth_logout",
         "pocket_native_dashboard",
+        "pocket_native_records",
+        "pocket_native_accounts",
+        "pocket_native_recurring",
+        "pocket_native_budget",
+        "pocket_native_budget_save",
+        "pocket_native_goals",
+        "pocket_native_goals_save",
+        "pocket_native_goal_saved",
         "pocket_native_categories",
+        "pocket_native_category_save",
+        "pocket_native_category_delete",
+        "pocket_native_category_move",
+        "pocket_native_transaction_form",
+        "pocket_native_transaction_save",
+        "pocket_native_record_delete",
         "pocket_page_compat_proxy",
         "pocket_web_compat_proxy",
         "pocket_terms_of_use",
@@ -7537,6 +7551,123 @@ def pocket_native_category_items(kind: str) -> list[dict[str, object]]:
         }
         for key, label, color, icon_key in raw_items
     ]
+
+
+def ensure_pocket_native_app_tables(conn: sqlite3.Connection) -> None:
+    ensure_expense_finance_tables(conn)
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS pocket_native_budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category_key TEXT NOT NULL,
+            amount REAL NOT NULL DEFAULT 0,
+            period_type TEXT NOT NULL DEFAULT 'MONTHLY',
+            note TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+            updated_at TEXT NOT NULL DEFAULT (DATETIME('now'))
+        );
+        CREATE TABLE IF NOT EXISTS pocket_native_goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            target_amount REAL NOT NULL DEFAULT 0,
+            saved_amount REAL NOT NULL DEFAULT 0,
+            target_date TEXT,
+            note TEXT,
+            plan_frequency TEXT NOT NULL DEFAULT 'MONTHLY',
+            plan_amount REAL NOT NULL DEFAULT 0,
+            auto_reminder_on INTEGER NOT NULL DEFAULT 1,
+            status TEXT NOT NULL DEFAULT 'ACTIVE',
+            created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+            updated_at TEXT NOT NULL DEFAULT (DATETIME('now'))
+        );
+        CREATE TABLE IF NOT EXISTS pocket_native_goal_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_id INTEGER NOT NULL,
+            amount REAL NOT NULL DEFAULT 0,
+            saved_at TEXT NOT NULL,
+            note TEXT,
+            kind TEXT NOT NULL DEFAULT 'save',
+            created_at TEXT NOT NULL DEFAULT (DATETIME('now'))
+        );
+        CREATE TABLE IF NOT EXISTS pocket_native_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            category_key TEXT NOT NULL,
+            label TEXT NOT NULL,
+            icon_key TEXT NOT NULL DEFAULT '',
+            color_hex TEXT NOT NULL DEFAULT '#58A6FF',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+            updated_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+            UNIQUE(kind, category_key)
+        );
+        """
+    )
+
+
+def pocket_native_slug(value: str, fallback: str = "custom") -> str:
+    clean = re.sub(r"[^a-z0-9]+", "_", (value or "").strip().lower()).strip("_")
+    return clean or fallback
+
+
+def pocket_native_currency_payload() -> dict[str, str]:
+    return {"currencyCode": "BDT", "currencySymbol": "৳"}
+
+
+def pocket_native_db() -> sqlite3.Connection:
+    db = get_db()
+    ensure_pocket_native_app_tables(db)
+    return db
+
+
+def pocket_native_all_categories(db: sqlite3.Connection, kind: str) -> list[dict[str, object]]:
+    current_kind = "income" if (kind or "").strip().lower() == "income" else "expense"
+    defaults = pocket_native_category_items(current_kind)
+    try:
+        rows = db.execute(
+            """
+            SELECT category_key, label, icon_key, color_hex
+            FROM pocket_native_categories
+            WHERE kind = ? AND is_active = 1
+            ORDER BY sort_order ASC, id ASC
+            """,
+            (current_kind,),
+        ).fetchall()
+    except sqlite3.Error:
+        rows = []
+    custom_items = [
+        {
+            "key": str(row["category_key"] or ""),
+            "label": str(row["label"] or ""),
+            "colorHex": str(row["color_hex"] or "#58A6FF"),
+            "iconClass": "",
+            "iconKey": str(row["icon_key"] or ""),
+        }
+        for row in rows
+    ]
+    merged: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for item in [*custom_items, *defaults]:
+        key = str(item.get("key") or "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged
+
+
+def pocket_native_month_bounds(month_value: str) -> tuple[str, str, str]:
+    clean = (month_value or "").strip()
+    try:
+        first_day = datetime.strptime(clean, "%Y-%m").date().replace(day=1)
+    except ValueError:
+        today = date.today()
+        first_day = today.replace(day=1)
+    last_day = first_day.replace(day=calendar.monthrange(first_day.year, first_day.month)[1])
+    return first_day.isoformat(), last_day.isoformat(), first_day.strftime("%B %Y")
 
 
 def pocket_native_user_payload(
@@ -7812,19 +7943,655 @@ def pocket_native_dashboard():
     )
 
 
+@app.get("/api/pocket/native/records")
+def pocket_native_records():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    start_date, end_date, month_label = pocket_native_month_bounds(str(request.args.get("month") or ""))
+    income_rows = db.execute(
+        """
+        SELECT id, income_date AS entry_date, category, source_name AS party_name, amount, note
+        FROM incomes
+        WHERE income_date BETWEEN ? AND ?
+        ORDER BY income_date DESC, id DESC
+        LIMIT 300
+        """,
+        (start_date, end_date),
+    ).fetchall()
+    expense_rows = db.execute(
+        """
+        SELECT id, expense_date AS entry_date, category, employee_name AS party_name, amount, note
+        FROM expenses
+        WHERE expense_date BETWEEN ? AND ?
+        ORDER BY expense_date DESC, id DESC
+        LIMIT 300
+        """,
+        (start_date, end_date),
+    ).fetchall()
+    grouped: dict[str, list[dict[str, object]]] = {}
+    income_total = 0.0
+    expense_total = 0.0
+    for row in income_rows:
+        amount = float(row["amount"] or 0)
+        income_total += amount
+        entry_date = str(row["entry_date"] or start_date)
+        grouped.setdefault(entry_date, []).append(
+            {
+                "id": int(row["id"] or 0),
+                "kind": "income",
+                "mode": "income",
+                "label": str(row["party_name"] or row["category"] or "Income"),
+                "note": str(row["note"] or ""),
+                "date": entry_date,
+                "amount": amount,
+                "signedAmount": amount,
+                "colorHex": "#22c55e",
+                "iconClass": "",
+                "canDelete": True,
+                "detailUrl": "",
+                "editUrl": "",
+                "deleteUrl": "",
+            }
+        )
+    for row in expense_rows:
+        amount = float(row["amount"] or 0)
+        expense_total += amount
+        entry_date = str(row["entry_date"] or start_date)
+        grouped.setdefault(entry_date, []).append(
+            {
+                "id": int(row["id"] or 0),
+                "kind": "expense",
+                "mode": "expense",
+                "label": str(row["party_name"] or row["category"] or "Expense"),
+                "note": str(row["note"] or ""),
+                "date": entry_date,
+                "amount": amount,
+                "signedAmount": -amount,
+                "colorHex": "#ff4da6",
+                "iconClass": "",
+                "canDelete": True,
+                "detailUrl": "",
+                "editUrl": "",
+                "deleteUrl": "",
+            }
+        )
+    groups = []
+    for entry_date in sorted(grouped.keys(), reverse=True):
+        rows = grouped[entry_date]
+        groups.append(
+            {
+                "dateIso": entry_date,
+                "dateLabel": entry_date,
+                "weekdayLabel": "",
+                "incomeTotal": sum(float(item["amount"]) for item in rows if item["kind"] == "income"),
+                "expenseTotal": sum(float(item["amount"]) for item in rows if item["kind"] == "expense"),
+                "rows": rows,
+            }
+        )
+    return jsonify(
+        ok=True,
+        message="Pocket Pro records ready.",
+        user=user,
+        records={
+            "monthValue": start_date[:7],
+            "monthLabel": month_label,
+            "yearLabel": start_date[:4],
+            **pocket_native_currency_payload(),
+            "summary": {
+                "income": income_total,
+                "expense": expense_total,
+                "lent": 0.0,
+                "balance": income_total - expense_total,
+                "records": len(income_rows) + len(expense_rows),
+            },
+            "groups": groups,
+        },
+    )
+
+
+@app.get("/api/pocket/native/accounts")
+def pocket_native_accounts():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    income_total = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes").fetchone()[0] or 0)
+    expense_total = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses").fetchone()[0] or 0)
+    balance = income_total - expense_total
+    return jsonify(
+        ok=True,
+        message="Pocket Pro accounts ready.",
+        user=user,
+        accounts={
+            **pocket_native_currency_payload(),
+            "activeFilter": "ALL",
+            "filters": [
+                {"key": "ALL", "label": "All", "iconToken": "all"},
+                {"key": "CASH", "label": "Cash", "iconToken": "cash"},
+            ],
+            "summary": {
+                "totalBalance": balance,
+                "totalIncome": income_total,
+                "totalExpense": expense_total,
+                "accounts": 1,
+                "openingBalance": 0.0,
+                "netChange": balance,
+            },
+            "accounts": [
+                {
+                    "id": 1,
+                    "name": "My Wallet",
+                    "type": "CASH",
+                    "typeLabel": "Cash",
+                    "openingBalance": 0.0,
+                    "currentBalance": balance,
+                    "incomeTotal": income_total,
+                    "expenseTotal": expense_total,
+                    "netChange": balance,
+                    "isDefault": True,
+                    "note": "All accounts combined",
+                    "accentHex": "#58A6FF",
+                    "iconToken": "cash",
+                    "statementUrl": "",
+                    "statementPdfUrl": "",
+                }
+            ],
+            "recentActivity": [],
+            "statementPdfBaseUrl": "",
+        },
+    )
+
+
+@app.get("/api/pocket/native/recurring")
+def pocket_native_recurring():
+    _, user = pocket_native_current_auth()
+    return jsonify(
+        ok=True,
+        message="Pocket Pro reminders ready.",
+        user=user,
+        payload={
+            **pocket_native_currency_payload(),
+            "summary": {
+                "totalTemplates": 0,
+                "activeTemplates": 0,
+                "incomeTemplates": 0,
+                "expenseTemplates": 0,
+                "nextDueTitle": "",
+                "nextDueDate": "",
+            },
+            "templates": [],
+        },
+    )
+
+
+@app.get("/api/pocket/native/budget")
+def pocket_native_budget():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    budget_rows = db.execute(
+        """
+        SELECT id, name, category_key, amount, period_type, note, is_active
+        FROM pocket_native_budgets
+        WHERE is_active = 1
+        ORDER BY id DESC
+        """,
+    ).fetchall()
+    expense_by_category = {
+        str(row["category"] or ""): float(row["spent"] or 0)
+        for row in db.execute(
+            """
+            SELECT category, COALESCE(SUM(amount), 0) AS spent
+            FROM expenses
+            GROUP BY category
+            """
+        ).fetchall()
+    }
+    budgets = []
+    total_budget = 0.0
+    total_spent = 0.0
+    for row in budget_rows:
+        amount = float(row["amount"] or 0)
+        spent = float(expense_by_category.get(str(row["category_key"] or ""), 0))
+        remaining = max(0.0, amount - spent)
+        progress = int(round((spent / amount) * 100)) if amount > 0 else 0
+        total_budget += amount
+        total_spent += spent
+        budgets.append(
+            {
+                "id": int(row["id"] or 0),
+                "name": str(row["name"] or "Budget"),
+                "categoryKey": str(row["category_key"] or "all"),
+                "categoryLabel": str(row["category_key"] or "All").replace("_", " ").title(),
+                "amount": amount,
+                "spent": spent,
+                "remaining": remaining,
+                "progress": progress,
+                "periodType": str(row["period_type"] or "MONTHLY"),
+                "note": str(row["note"] or ""),
+                "accentHex": "#58A6FF",
+                "isActive": bool(row["is_active"]),
+                "dueDayOfMonth": 1,
+            }
+        )
+    used_percent = int(round((total_spent / total_budget) * 100)) if total_budget > 0 else 0
+    return jsonify(
+        ok=True,
+        message="Pocket Pro budget ready.",
+        user=user,
+        budget={
+            **pocket_native_currency_payload(),
+            "summary": {
+                "totalBudget": total_budget,
+                "spent": total_spent,
+                "remaining": max(0.0, total_budget - total_spent),
+                "usedPercent": used_percent,
+                "activeBudgets": len(budgets),
+            },
+            "budgets": budgets,
+            "categoryOptions": pocket_native_all_categories(db, "expense"),
+            "tipTitle": "Budget stays synced",
+            "tipBody": "Expenses in the same category automatically reduce remaining budget.",
+        },
+    )
+
+
+@app.post("/api/pocket/native/budget/save")
+def pocket_native_budget_save():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("budgetName") or "Monthly Budget").strip()
+    category_key = pocket_native_slug(str(payload.get("categoryKey") or "all"), "all")
+    amount = max(0.0, float(payload.get("amount") or 0))
+    period_type = str(payload.get("periodType") or "MONTHLY").strip().upper() or "MONTHLY"
+    note = str(payload.get("note") or "").strip()
+    if amount <= 0:
+        return jsonify(ok=False, message="Budget amount must be greater than 0."), 400
+    existing = db.execute(
+        "SELECT id FROM pocket_native_budgets WHERE LOWER(category_key) = LOWER(?) AND is_active = 1 LIMIT 1",
+        (category_key,),
+    ).fetchone()
+    if existing is not None:
+        db.execute(
+            """
+            UPDATE pocket_native_budgets
+            SET name = ?, amount = ?, period_type = ?, note = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (name, amount, period_type, note, now_sqlite_text(), int(existing["id"])),
+        )
+    else:
+        db.execute(
+            """
+            INSERT INTO pocket_native_budgets (name, category_key, amount, period_type, note)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (name, category_key, amount, period_type, note),
+        )
+    db.commit()
+    response = pocket_native_budget()
+    response.json["message"] = "Budget saved."
+    response.json["user"] = user
+    return response
+
+
+@app.get("/api/pocket/native/goals")
+def pocket_native_goals():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    rows = db.execute(
+        """
+        SELECT id, name, target_amount, saved_amount, target_date, note,
+               plan_frequency, plan_amount, auto_reminder_on, status
+        FROM pocket_native_goals
+        WHERE status = 'ACTIVE'
+        ORDER BY id DESC
+        """,
+    ).fetchall()
+    goals = []
+    target_total = 0.0
+    saved_total = 0.0
+    for row in rows:
+        target = float(row["target_amount"] or 0)
+        saved = float(row["saved_amount"] or 0)
+        remaining = max(0.0, target - saved)
+        progress = int(round((saved / target) * 100)) if target > 0 else 0
+        history_rows = db.execute(
+            """
+            SELECT id, amount, saved_at, note, kind
+            FROM pocket_native_goal_history
+            WHERE goal_id = ?
+            ORDER BY id DESC
+            LIMIT 20
+            """,
+            (int(row["id"]),),
+        ).fetchall()
+        goals.append(
+            {
+                "id": int(row["id"] or 0),
+                "name": str(row["name"] or "Goal"),
+                "targetAmount": target,
+                "savedAmount": saved,
+                "remainingAmount": remaining,
+                "progress": progress,
+                "targetDate": str(row["target_date"] or ""),
+                "status": str(row["status"] or "ACTIVE"),
+                "deadlineState": "OPEN",
+                "deadlineText": str(row["target_date"] or ""),
+                "note": str(row["note"] or ""),
+                "planFrequency": str(row["plan_frequency"] or "MONTHLY"),
+                "planAmount": float(row["plan_amount"] or 0),
+                "autoReminderOn": bool(row["auto_reminder_on"]),
+                "history": [
+                    {
+                        "id": str(item["id"] or ""),
+                        "amount": float(item["amount"] or 0),
+                        "date": str(item["saved_at"] or ""),
+                        "note": str(item["note"] or ""),
+                        "kind": str(item["kind"] or "save"),
+                    }
+                    for item in history_rows
+                ],
+                "accentStartHex": "#58A6FF",
+                "accentEndHex": "#00D5FF",
+            }
+        )
+        target_total += target
+        saved_total += saved
+    total_progress = int(round((saved_total / target_total) * 100)) if target_total > 0 else 0
+    return jsonify(
+        ok=True,
+        message="Pocket Pro goals ready.",
+        user=user,
+        goals={
+            **pocket_native_currency_payload(),
+            "summary": {
+                "totalProgressPercent": total_progress,
+                "savedAmount": saved_total,
+                "targetAmount": target_total,
+                "remainingAmount": max(0.0, target_total - saved_total),
+                "goalsCount": len(goals),
+            },
+            "goals": goals,
+            "quickAddOptions": [100.0, 500.0, 1000.0, 5000.0],
+            "motivationTitle": "Keep saving",
+            "motivationBody": "Small saves build the goal.",
+        },
+    )
+
+
+@app.post("/api/pocket/native/goals/save")
+def pocket_native_goals_save():
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("goalName") or "New Goal").strip()
+    target = max(0.0, float(payload.get("targetAmount") or 0))
+    saved = max(0.0, float(payload.get("savedAmount") or 0))
+    if target <= 0:
+        return jsonify(ok=False, message="Goal target amount must be greater than 0."), 400
+    db.execute(
+        """
+        INSERT INTO pocket_native_goals (
+            name, target_amount, saved_amount, target_date, note,
+            plan_frequency, plan_amount, auto_reminder_on
+        )
+        VALUES (?, ?, ?, ?, ?, 'MONTHLY', 0, 1)
+        """,
+        (
+            name,
+            target,
+            min(saved, target),
+            str(payload.get("targetDate") or ""),
+            str(payload.get("note") or ""),
+        ),
+    )
+    goal_id = int(db.execute("SELECT last_insert_rowid()").fetchone()[0])
+    if saved > 0:
+        db.execute(
+            """
+            INSERT INTO pocket_native_goal_history (goal_id, amount, saved_at, note, kind)
+            VALUES (?, ?, ?, ?, 'save')
+            """,
+            (goal_id, min(saved, target), date.today().isoformat(), "Initial save"),
+        )
+    db.commit()
+    response = pocket_native_goals()
+    response.json["message"] = "Goal saved."
+    return response
+
+
+@app.post("/api/pocket/native/goals/<int:goal_id>/saved")
+def pocket_native_goal_saved(goal_id: int):
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    amount = max(0.0, float(payload.get("amount") or 0))
+    if amount <= 0:
+        return jsonify(ok=False, message="Save amount must be greater than 0."), 400
+    row = db.execute("SELECT id, target_amount, saved_amount FROM pocket_native_goals WHERE id = ?", (goal_id,)).fetchone()
+    if row is None:
+        return jsonify(ok=False, message="Goal not found."), 404
+    new_saved = min(float(row["target_amount"] or 0), float(row["saved_amount"] or 0) + amount)
+    db.execute(
+        "UPDATE pocket_native_goals SET saved_amount = ?, updated_at = ? WHERE id = ?",
+        (new_saved, now_sqlite_text(), goal_id),
+    )
+    db.execute(
+        """
+        INSERT INTO pocket_native_goal_history (goal_id, amount, saved_at, note, kind)
+        VALUES (?, ?, ?, '', 'save')
+        """,
+        (goal_id, amount, date.today().isoformat()),
+    )
+    db.commit()
+    response = pocket_native_goals()
+    response.json["message"] = "Goal money saved."
+    return response
+
+
 @app.get("/api/pocket/native/categories")
 def pocket_native_categories():
     kind = "income" if str(request.args.get("kind") or "").strip().lower() == "income" else "expense"
+    db = pocket_native_db()
     return jsonify(
         ok=True,
         message="Pocket Pro categories ready.",
         categories={
             "currentKind": kind,
-            "categories": pocket_native_category_items(kind),
-            "iconOptions": [],
+            "categories": pocket_native_all_categories(db, kind),
+            "iconOptions": [
+                {"key": "wallet", "label": "Wallet", "iconClass": ""},
+                {"key": "receipt", "label": "Receipt", "iconClass": ""},
+                {"key": "sparkles", "label": "Smart", "iconClass": ""},
+            ],
             "colorSwatches": ["#58A6FF", "#22c55e", "#06b6d4", "#f59e0b", "#f472b6", "#ff6a59", "#8b5cf6"],
         },
     )
+
+
+@app.post("/api/pocket/native/categories/save")
+def pocket_native_category_save():
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    kind = "income" if str(payload.get("kind") or "").strip().lower() == "income" else "expense"
+    label = str(payload.get("label") or "").strip()
+    if not label:
+        return jsonify(ok=False, message="Category name is required."), 400
+    category_key = pocket_native_slug(str(payload.get("originalKey") or "") or label)
+    duplicate = db.execute(
+        """
+        SELECT id FROM pocket_native_categories
+        WHERE kind = ? AND LOWER(label) = LOWER(?) AND category_key <> ?
+        LIMIT 1
+        """,
+        (kind, label, category_key),
+    ).fetchone()
+    if duplicate is not None:
+        return jsonify(ok=False, message="This category already exists."), 409
+    db.execute(
+        """
+        INSERT INTO pocket_native_categories (kind, category_key, label, icon_key, color_hex, sort_order)
+        VALUES (?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM pocket_native_categories WHERE kind = ?), 1))
+        ON CONFLICT(kind, category_key) DO UPDATE SET
+            label = excluded.label,
+            icon_key = excluded.icon_key,
+            color_hex = excluded.color_hex,
+            is_active = 1,
+            updated_at = DATETIME('now')
+        """,
+        (
+            kind,
+            category_key,
+            label,
+            str(payload.get("iconKey") or ""),
+            str(payload.get("colorHex") or "#58A6FF"),
+            kind,
+        ),
+    )
+    db.commit()
+    return pocket_native_categories()
+
+
+@app.post("/api/pocket/native/categories/delete")
+def pocket_native_category_delete():
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    kind = "income" if str(payload.get("kind") or "").strip().lower() == "income" else "expense"
+    category_key = pocket_native_slug(str(payload.get("categoryKey") or ""))
+    db.execute(
+        "UPDATE pocket_native_categories SET is_active = 0, updated_at = ? WHERE kind = ? AND category_key = ?",
+        (now_sqlite_text(), kind, category_key),
+    )
+    db.commit()
+    return pocket_native_categories()
+
+
+@app.post("/api/pocket/native/categories/move")
+def pocket_native_category_move():
+    return pocket_native_categories()
+
+
+@app.get("/api/pocket/native/transaction/form")
+def pocket_native_transaction_form():
+    _, user = pocket_native_current_auth()
+    db = pocket_native_db()
+    mode = str(request.args.get("mode") or "expense").strip().lower()
+    if mode not in {"income", "expense", "lent", "borrow", "repay", "receive"}:
+        mode = "expense"
+    category_kind = "income" if mode in {"income", "borrow", "receive"} else "expense"
+    titles = {
+        "income": ("Income", "Save income"),
+        "expense": ("Expense", "Save expense"),
+        "lent": ("Give Loan", "Save loan"),
+        "borrow": ("Take Loan", "Save loan"),
+        "repay": ("Pay Back", "Save payment"),
+        "receive": ("Get Back", "Save collection"),
+    }
+    title, submit_label = titles.get(mode, titles["expense"])
+    return jsonify(
+        ok=True,
+        message="Pocket Pro form ready.",
+        user=user,
+        form={
+            "mode": mode,
+            **pocket_native_currency_payload(),
+            "defaultEntryDate": date.today().isoformat(),
+            "defaultAccountId": 1,
+            "defaultCategoryKey": pocket_native_all_categories(db, category_kind)[0]["key"],
+            "defaultPaymentMethod": "CASH",
+            "title": title,
+            "subtitle": "Fast entry",
+            "partyLabel": "Name",
+            "submitLabel": submit_label,
+            "categorySettingsUrl": "",
+            "categoryCreateUrl": "",
+            "categoryEditBaseUrl": "",
+            "accounts": [
+                {
+                    "id": 1,
+                    "name": "My Wallet",
+                    "type": "CASH",
+                    "typeLabel": "Cash",
+                    "currentBalance": 0.0,
+                    "isDefault": True,
+                    "accentHex": "#58A6FF",
+                }
+            ],
+            "categories": pocket_native_all_categories(db, category_kind),
+            "paymentMethods": [
+                {"key": "CASH", "label": "Cash"},
+                {"key": "BANK", "label": "Bank"},
+                {"key": "MOBILE_BANKING", "label": "Mobile banking"},
+            ],
+            "isEditMode": False,
+            "editEntryKind": "",
+            "editEntryId": 0,
+            "initialAmount": 0.0,
+            "initialPartyName": "",
+            "initialNote": "",
+            "deleteUrl": "",
+        },
+    )
+
+
+@app.post("/api/pocket/native/transaction")
+def pocket_native_transaction_save():
+    tenant = get_current_tenant()
+    current_user = get_current_tenant_user()
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    mode = str(payload.get("mode") or "expense").strip().lower()
+    amount = max(0.0, float(payload.get("amount") or 0))
+    if amount <= 0:
+        return jsonify(ok=False, message="Amount must be greater than 0."), 400
+    entry_date = normalize_date(str(payload.get("entryDate") or payload.get("entry_date") or ""))
+    category_key = pocket_native_slug(str(payload.get("categoryKey") or payload.get("category_key") or ""), "misc")
+    payment_method = str(payload.get("paymentMethod") or payload.get("payment_method") or "CASH").strip().upper() or "CASH"
+    party_name = str(payload.get("partyName") or payload.get("party_name") or "").strip()
+    note = str(payload.get("note") or "").strip()
+    user_id = int(row_value(current_user, "id", 0) or 0) if current_user is not None else None
+    username = str(row_value(current_user, "username", "") or "") if current_user is not None else ""
+    if mode in {"income", "borrow", "receive"}:
+        db.execute(
+            """
+            INSERT INTO incomes (
+                income_date, category, source_name, amount, payment_method, branch_id, note,
+                entered_by_user_id, entered_by_username, approval_status, approved_by_user_id, approved_at,
+                created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'APPROVED', ?, ?, ?, ?)
+            """,
+            (entry_date, category_key, party_name, amount, payment_method, note, user_id, username, user_id, now_sqlite_text(), now_sqlite_text(), now_sqlite_text()),
+        )
+        message = "Income saved."
+    else:
+        db.execute(
+            """
+            INSERT INTO expenses (
+                expense_date, category, employee_name, amount, payment_method, branch_id, note,
+                entered_by_user_id, entered_by_username, approval_status, approved_by_user_id, approved_at,
+                created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'APPROVED', ?, ?, ?, ?)
+            """,
+            (entry_date, category_key, party_name, amount, payment_method, note, user_id, username, user_id, now_sqlite_text(), now_sqlite_text(), now_sqlite_text()),
+        )
+        message = "Expense saved."
+    db.commit()
+    return jsonify(ok=True, message=message)
+
+
+@app.post("/api/pocket/native/records/delete")
+def pocket_native_record_delete():
+    db = pocket_native_db()
+    payload = request.get_json(silent=True) or {}
+    kind = str(payload.get("kind") or "").strip().lower()
+    record_id = int(payload.get("id") or 0)
+    if kind == "income":
+        db.execute("DELETE FROM incomes WHERE id = ?", (record_id,))
+    elif kind == "expense":
+        db.execute("DELETE FROM expenses WHERE id = ?", (record_id,))
+    else:
+        return jsonify(ok=False, message="Invalid record."), 400
+    db.commit()
+    return jsonify(ok=True, message="Record deleted.")
 
 
 @app.route("/api/pocket/native/<path:proxy_path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
