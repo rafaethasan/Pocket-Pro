@@ -1814,6 +1814,7 @@ def init_admin_db() -> None:
                 shop_name TEXT NOT NULL,
                 owner_name TEXT,
                 phone TEXT,
+                email TEXT,
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 db_path TEXT NOT NULL UNIQUE,
@@ -1833,6 +1834,8 @@ def init_admin_db() -> None:
         existing_columns = get_table_columns(conn, "tenant_accounts")
         if "billing_cycle" not in existing_columns:
             conn.execute("ALTER TABLE tenant_accounts ADD COLUMN billing_cycle TEXT NOT NULL DEFAULT 'MONTHLY'")
+        if "email" not in existing_columns:
+            conn.execute("ALTER TABLE tenant_accounts ADD COLUMN email TEXT")
         if "monthly_fee" not in existing_columns:
             conn.execute("ALTER TABLE tenant_accounts ADD COLUMN monthly_fee REAL NOT NULL DEFAULT 0")
         if "paid_until" not in existing_columns:
@@ -7552,7 +7555,7 @@ def pocket_native_user_payload(
         "userId": int(row_value(tenant_user, "id", 0) or 0) if tenant_user is not None else 0,
         "username": str(username or ""),
         "fullName": str(full_name or ""),
-        "email": str(username or "") if "@" in str(username or "") else "",
+        "email": str(row_value(account, "email", "") or (username if "@" in str(username or "") else "")),
         "bio": "",
         "role": str(row_value(tenant_user, "role", "ADMIN") if tenant_user is not None else "ADMIN"),
         "avatarUrl": "",
@@ -7578,7 +7581,28 @@ def pocket_native_find_account(login_identifier: str) -> sqlite3.Row | None:
     if not clean_login:
         return None
     admin_db = get_admin_db()
+    fallback_username = clean_login.split("@", 1)[0] if "@" in clean_login else clean_login
     try:
+        return admin_db.execute(
+            """
+            SELECT
+                id, shop_name, owner_name, phone, email, username, password_hash, is_active,
+                paid_until, billing_cycle, monthly_fee, db_path,
+                ui_language, primary_business, enabled_modules
+            FROM tenant_accounts
+            WHERE is_active = 1
+              AND (
+                LOWER(username) = ?
+                OR LOWER(COALESCE(email, '')) = ?
+                OR LOWER(username) = ?
+              )
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (clean_login, clean_login, fallback_username),
+        ).fetchone()
+    except sqlite3.Error:
+        init_admin_db()
         return admin_db.execute(
             """
             SELECT
@@ -7586,15 +7610,12 @@ def pocket_native_find_account(login_identifier: str) -> sqlite3.Row | None:
                 paid_until, billing_cycle, monthly_fee, db_path,
                 ui_language, primary_business, enabled_modules
             FROM tenant_accounts
-            WHERE LOWER(username) = ? AND is_active = 1
+            WHERE LOWER(username) IN (?, ?) AND is_active = 1
             ORDER BY id DESC
             LIMIT 1
             """,
-            (clean_login,),
+            (clean_login, fallback_username),
         ).fetchone()
-    except sqlite3.Error:
-        init_admin_db()
-        return None
 
 
 @app.post("/api/pocket/native/auth/register")
@@ -7644,16 +7665,17 @@ def pocket_native_auth_register():
         admin_db.execute(
             """
             INSERT INTO tenant_accounts (
-                shop_name, owner_name, phone, username, password_hash, db_path,
+                shop_name, owner_name, phone, email, username, password_hash, db_path,
                 ui_language, primary_business, enabled_modules,
                 billing_cycle, monthly_fee, paid_until, billing_note, is_active
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (
                 username,
                 full_name,
                 "",
+                email,
                 username,
                 make_password_hash(password),
                 str(db_path),
