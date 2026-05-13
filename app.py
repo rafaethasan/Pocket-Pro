@@ -8609,6 +8609,9 @@ def pocket_web_compat_proxy(proxy_path: str):
     return proxy_pocket_legacy_request(f"pocket-pro/{proxy_path}")
 
 
+@app.get("/terms")
+@app.get("/terms-and-conditions")
+@app.get("/terms-of-use")
 @app.get("/pocket/terms-of-use")
 def pocket_terms_of_use():
     if not is_pocket_public_host():
@@ -8646,6 +8649,8 @@ def pocket_terms_of_use():
     )
 
 
+@app.get("/privacy")
+@app.get("/privacy-policy")
 @app.get("/pocket/privacy-policy")
 def pocket_privacy_policy():
     if not is_pocket_public_host():
@@ -8683,6 +8688,7 @@ def pocket_privacy_policy():
     )
 
 
+@app.get("/account-deletion")
 @app.get("/pocket/account-deletion")
 def pocket_account_deletion():
     if not is_pocket_public_host():
