@@ -7767,7 +7767,16 @@ def pocket_native_auth_register():
 
     admin_db = get_admin_db()
     db_path = tenant_db_path_for_username(username)
-    existing = admin_db.execute("SELECT id FROM tenant_accounts WHERE username = ?", (username,)).fetchone()
+    existing = admin_db.execute(
+        """
+        SELECT id
+        FROM tenant_accounts
+        WHERE LOWER(username) = LOWER(?)
+           OR (TRIM(COALESCE(email, '')) <> '' AND LOWER(email) = LOWER(?))
+        LIMIT 1
+        """,
+        (username, email),
+    ).fetchone()
     if existing is not None:
         return jsonify(ok=False, message="This account already exists. Please login."), 409
     if db_path.exists():
