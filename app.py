@@ -9778,6 +9778,59 @@ def admin_logout():
     return redirect(url_for("superadmin_login"))
 
 
+@app.get("/admin/pocket/runtime/status")
+def admin_pocket_runtime_status():
+    admin_db = get_admin_db()
+    tenant_count = 0
+    try:
+        tenant_count = int(admin_db.execute("SELECT COUNT(*) FROM tenant_accounts").fetchone()[0] or 0)
+    except sqlite3.Error:
+        tenant_count = 0
+
+    tenant_files = [path for path in TENANT_DATA_DIR.glob("*.db") if path.is_file()] if TENANT_DATA_DIR.exists() else []
+    return jsonify(
+        ok=True,
+        mainDb=str(DB_PATH),
+        adminDb=str(ADMIN_DB_PATH),
+        tenantDir=str(TENANT_DATA_DIR),
+        tenantAccounts=tenant_count,
+        tenantFiles=len(tenant_files),
+    )
+
+
+@app.post("/admin/pocket/runtime/import")
+def admin_pocket_runtime_import():
+    upload = request.files.get("runtime_package")
+    if upload is None or not upload.filename:
+        return jsonify(ok=False, message="runtime_package zip file is required."), 400
+
+    filename = secure_filename(upload.filename)
+    if not filename.lower().endswith(".zip"):
+        return jsonify(ok=False, message="Only Pocket Pro runtime .zip packages are allowed."), 400
+
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    upload_path = BACKUP_DIR / f"uploaded-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{filename}"
+    upload.save(upload_path)
+
+    try:
+        safety_backup, result = restore_pocket_runtime_export_package(upload_path)
+    except Exception as exc:
+        return jsonify(ok=False, message=f"Pocket Pro runtime import failed: {exc}"), 400
+
+    write_audit_log(
+        action="POCKET_RUNTIME_IMPORT",
+        actor_type="SUPERADMIN",
+        actor_username=SUPERADMIN_USER,
+        actor_role="SUPERADMIN",
+        metadata={
+            "upload": str(upload_path),
+            "safety_backup": str(safety_backup) if safety_backup is not None else "",
+            "tenant_file_count": result.get("tenant_file_count", 0),
+        },
+    )
+    return jsonify(ok=True, message="Pocket Pro runtime import completed.", result=result)
+
+
 @app.route("/admin/accounts", methods=["GET", "POST"])
 def admin_accounts():
     admin_db = get_admin_db()
