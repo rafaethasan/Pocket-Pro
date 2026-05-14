@@ -79,7 +79,23 @@ def _is_bad_host_path(raw_path: str) -> bool:
 
 
 POCKET_LEGACY_BASE_URL = _pocket_legacy_base_url_env.rstrip("/")
-DEFAULT_RUNTIME_DATA_DIR = Path("/var/data") if Path("/opt/render").exists() else BASE_DIR
+
+
+def choose_default_runtime_data_dir() -> Path:
+    if not Path("/opt/render").exists():
+        return BASE_DIR
+    render_data_dir = Path("/var/data")
+    try:
+        render_data_dir.mkdir(parents=True, exist_ok=True)
+        probe_path = render_data_dir / ".pocketpro-write-check"
+        probe_path.write_text("ok", encoding="utf-8")
+        probe_path.unlink(missing_ok=True)
+        return render_data_dir
+    except OSError:
+        return BASE_DIR
+
+
+DEFAULT_RUNTIME_DATA_DIR = choose_default_runtime_data_dir()
 
 
 DB_PATH = (
