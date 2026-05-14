@@ -7707,6 +7707,135 @@ def pocket_native_current_auth() -> tuple[sqlite3.Row | None, dict[str, object] 
     return tenant, pocket_native_user_payload(tenant, tenant_user)
 
 
+def pocket_native_account_matches_login(
+    account: sqlite3.Row | dict[str, object],
+    login_identifier: str,
+) -> bool:
+    clean_login = normalize_login_identifier(login_identifier)
+    if not clean_login:
+        return False
+    candidates = {
+        normalize_login_identifier(row_value(account, "username", "")),
+        normalize_login_identifier(row_value(account, "email", "")),
+        normalize_login_identifier(row_value(account, "phone", "")),
+    }
+    if "@" in clean_login:
+        candidates.add(normalize_login_identifier(clean_login.split("@", 1)[0]))
+    return clean_login in {item for item in candidates if item}
+
+
+def pocket_native_authenticate_existing_account(
+    admin_db: sqlite3.Connection,
+    login_identifier: str,
+    password: str,
+) -> tuple[sqlite3.Row | dict[str, object] | None, dict[str, object] | None]:
+    clean_login = normalize_login_identifier(login_identifier)
+    if not clean_login or not password:
+        return None, None
+
+    active_accounts = admin_db.execute(
+        "SELECT * FROM tenant_accounts WHERE is_active = 1 ORDER BY id DESC"
+    ).fetchall()
+    prioritized_accounts = [
+        account for account in active_accounts if pocket_native_account_matches_login(account, clean_login)
+    ]
+    if prioritized_accounts:
+        prioritized_ids = {int(row_value(account, "id", 0) or 0) for account in prioritized_accounts}
+        active_accounts = prioritized_accounts + [
+            account for account in active_accounts if int(row_value(account, "id", 0) or 0) not in prioritized_ids
+        ]
+
+    for account in active_accounts:
+        tenant_db_path = ensure_tenant_db_ready(admin_db, account)
+        if tenant_db_path is None:
+            continue
+
+        owner_login_match = pocket_native_account_matches_login(account, clean_login)
+        try:
+            with sqlite3.connect(tenant_db_path) as tenant_conn:
+                tenant_conn.row_factory = sqlite3.Row
+                tenant_conn.execute("PRAGMA foreign_keys = ON;")
+                ensure_tenant_users_table(tenant_conn)
+
+                if owner_login_match:
+                    tenant_admin_user = tenant_conn.execute(
+                        """
+                        SELECT id, username, full_name, role, password_hash, is_active
+                        FROM users
+                        WHERE role = 'ADMIN' AND is_active = 1
+                        ORDER BY CASE
+                            WHEN LOWER(username) = ? THEN 0
+                            WHEN LOWER(username) = 'admin' THEN 1
+                            ELSE 2
+                        END, id ASC
+                        LIMIT 1
+                        """,
+                        (clean_login,),
+                    ).fetchone()
+                    if tenant_admin_user is not None and password_matches(
+                        str(tenant_admin_user["password_hash"]), password
+                    ):
+                        return account, {
+                            "id": int(tenant_admin_user["id"]),
+                            "username": str(tenant_admin_user["username"]),
+                            "full_name": str(tenant_admin_user["full_name"] or ""),
+                            "role": "ADMIN",
+                        }
+
+                user_columns = get_table_columns(tenant_conn, "users")
+                if "oauth_email" in user_columns:
+                    tenant_user = tenant_conn.execute(
+                        """
+                        SELECT id, username, full_name, role, password_hash, is_active, oauth_email
+                        FROM users
+                        WHERE (LOWER(username) = ? OR LOWER(COALESCE(oauth_email, '')) = ?)
+                          AND is_active = 1
+                        ORDER BY CASE WHEN role = 'ADMIN' THEN 0 ELSE 1 END, id ASC
+                        LIMIT 1
+                        """,
+                        (clean_login, clean_login),
+                    ).fetchone()
+                else:
+                    tenant_user = tenant_conn.execute(
+                        """
+                        SELECT id, username, full_name, role, password_hash, is_active
+                        FROM users
+                        WHERE LOWER(username) = ? AND is_active = 1
+                        ORDER BY CASE WHEN role = 'ADMIN' THEN 0 ELSE 1 END, id ASC
+                        LIMIT 1
+                        """,
+                        (clean_login,),
+                    ).fetchone()
+                if tenant_user is not None and password_matches(str(tenant_user["password_hash"]), password):
+                    return account, {
+                        "id": int(tenant_user["id"]),
+                        "username": str(tenant_user["username"]),
+                        "full_name": str(tenant_user["full_name"] or ""),
+                        "role": normalize_role(str(tenant_user["role"]), default="USER"),
+                    }
+        except sqlite3.Error:
+            continue
+
+        if owner_login_match and password_matches(str(row_value(account, "password_hash", "")), password):
+            full_name = row_value(account, "owner_name", "") or f"{row_value(account, 'shop_name', 'Pocket Pro')} Admin"
+            admin_user_id = create_or_update_tenant_user(
+                db_path=tenant_db_path,
+                username="admin",
+                full_name=full_name,
+                role="ADMIN",
+                password=password,
+                is_active=True,
+            )
+            return account, {
+                "id": int(admin_user_id),
+                "username": "admin",
+                "full_name": full_name,
+                "role": "ADMIN",
+            }
+
+    return None, None
+
+
 def pocket_native_find_account(login_identifier: str) -> sqlite3.Row | None:
     clean_login = normalize_login_identifier(login_identifier)
     if not clean_login:
@@ -7850,41 +7979,19 @@ def pocket_native_auth_login():
     payload = request.get_json(silent=True) or {}
     login_identifier = normalize_login_identifier(str(payload.get("login_identifier") or ""))
     password = str(payload.get("password") or "")
-    account = pocket_native_find_account(login_identifier)
-    if account is None or not password_matches(str(row_value(account, "password_hash", "")), password):
+    admin_db = get_admin_db()
+    account, tenant_user_payload = pocket_native_authenticate_existing_account(
+        admin_db,
+        login_identifier,
+        password,
+    )
+    if account is None or tenant_user_payload is None:
         return jsonify(ok=False, message="Login failed. Username/Email/Password check করুন।"), 401
 
-    admin_db = get_admin_db()
-    tenant_db_path = ensure_tenant_db_ready(admin_db, account)
-    tenant_user_payload = {"id": 1, "username": str(account["username"]), "full_name": str(account["owner_name"] or account["shop_name"]), "role": "ADMIN"}
-    if tenant_db_path is not None:
-        try:
-            with sqlite3.connect(tenant_db_path) as tenant_conn:
-                tenant_conn.row_factory = sqlite3.Row
-                ensure_tenant_users_table(tenant_conn)
-                tenant_user = tenant_conn.execute(
-                    """
-                    SELECT id, username, full_name, role, password_hash, is_active
-                    FROM users
-                    WHERE role = 'ADMIN' AND is_active = 1
-                    ORDER BY CASE WHEN LOWER(username) = 'admin' THEN 0 ELSE 1 END, id ASC
-                    LIMIT 1
-                    """
-                ).fetchone()
-                if tenant_user is not None:
-                    tenant_user_payload = {
-                        "id": int(tenant_user["id"]),
-                        "username": str(account["username"]),
-                        "full_name": str(tenant_user["full_name"] or account["owner_name"] or account["shop_name"]),
-                        "role": str(tenant_user["role"] or "ADMIN"),
-                    }
-        except sqlite3.Error:
-            pass
-
     session.clear()
-    session["tenant_id"] = int(account["id"])
+    session["tenant_id"] = int(row_value(account, "id", 0) or 0)
     session["tenant_user_id"] = int(tenant_user_payload["id"])
-    session["ui_lang"] = normalize_language(str(account["ui_language"])) or DEFAULT_UI_LANGUAGE
+    session["ui_lang"] = normalize_language(str(row_value(account, "ui_language", ""))) or DEFAULT_UI_LANGUAGE
     return jsonify(ok=True, message="Login successful.", user=pocket_native_user_payload(account, tenant_user_payload))
 
 
