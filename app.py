@@ -79,7 +79,7 @@ def _is_bad_host_path(raw_path: str) -> bool:
 
 
 POCKET_LEGACY_BASE_URL = _pocket_legacy_base_url_env.rstrip("/")
-DEFAULT_RUNTIME_DATA_DIR = Path("/var/data") if Path("/var/data").exists() else BASE_DIR
+DEFAULT_RUNTIME_DATA_DIR = Path("/var/data") if Path("/opt/render").exists() else BASE_DIR
 
 
 DB_PATH = (
