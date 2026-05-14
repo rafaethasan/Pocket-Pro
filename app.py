@@ -79,23 +79,24 @@ def _is_bad_host_path(raw_path: str) -> bool:
 
 
 POCKET_LEGACY_BASE_URL = _pocket_legacy_base_url_env.rstrip("/")
+DEFAULT_RUNTIME_DATA_DIR = Path("/var/data") if Path("/var/data").exists() else BASE_DIR
 
 
 DB_PATH = (
-    BASE_DIR / "inventory.db"
+    DEFAULT_RUNTIME_DATA_DIR / "pocketpro.db"
     if _is_bad_host_path(_db_path_env)
-    else (Path(_db_path_env) if _db_path_env else (BASE_DIR / "inventory.db"))
+    else (Path(_db_path_env) if _db_path_env else (DEFAULT_RUNTIME_DATA_DIR / "pocketpro.db"))
 )
-BACKUP_DIR = Path(_backup_dir_env) if _backup_dir_env else (BASE_DIR / "backups")
+BACKUP_DIR = Path(_backup_dir_env) if _backup_dir_env else (DEFAULT_RUNTIME_DATA_DIR / "backups")
 ADMIN_DB_PATH = (
-    BASE_DIR / "softx_admin.db"
+    DEFAULT_RUNTIME_DATA_DIR / "pocketpro_admin.db"
     if _is_bad_host_path(_admin_db_path_env)
-    else (Path(_admin_db_path_env) if _admin_db_path_env else (BASE_DIR / "softx_admin.db"))
+    else (Path(_admin_db_path_env) if _admin_db_path_env else (DEFAULT_RUNTIME_DATA_DIR / "pocketpro_admin.db"))
 )
 TENANT_DATA_DIR = (
-    BASE_DIR / "tenants"
+    DEFAULT_RUNTIME_DATA_DIR / "pocketpro_tenants"
     if _is_bad_host_path(_tenant_data_dir_env)
-    else (Path(_tenant_data_dir_env) if _tenant_data_dir_env else (BASE_DIR / "tenants"))
+    else (Path(_tenant_data_dir_env) if _tenant_data_dir_env else (DEFAULT_RUNTIME_DATA_DIR / "pocketpro_tenants"))
 )
 OFFLINE_MODE = _offline_mode_env == "1"
 POSTGRES_URL = _postgres_url_env
