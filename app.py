@@ -7547,16 +7547,41 @@ def pocket_native_category_items(kind: str) -> list[dict[str, object]]:
     if normalized == "income":
         raw_items = [
             ("salary", "Salary", "#58A6FF", "wallet"),
+            ("bonus", "Bonus", "#8B5CF6", "gift"),
             ("business_sales", "Business Sales", "#22c55e", "briefcase"),
             ("service_income", "Service Income", "#06b6d4", "badge"),
+            ("project_income", "Project Income", "#0EA5E9", "project"),
+            ("freelance", "Freelance", "#14B8A6", "laptop"),
+            ("commission", "Commission", "#F59E0B", "percent"),
+            ("rental_income", "Rental Income", "#10B981", "home"),
+            ("due_collection", "Due Collection", "#00D5FF", "collect"),
+            ("refund_cashback", "Refund / Cashback", "#34D399", "cashback"),
+            ("gift_received", "Gift Received", "#EC4899", "gift"),
+            ("loan_received", "Loan Received", "#6366F1", "loan"),
+            ("capital_injection", "Capital", "#0F766E", "bank"),
+            ("asset_sale", "Asset Sale", "#F97316", "asset"),
             ("other_income", "Other Income", "#8b5cf6", "sparkles"),
         ]
     else:
         raw_items = [
-            ("food", "Food", "#ff8a4c", "utensils"),
-            ("transport", "Transport", "#38bdf8", "car"),
+            ("food_groceries", "Food / Groceries", "#ff8a4c", "utensils"),
+            ("housing_rent", "Housing Rent", "#8B5CF6", "home"),
+            ("utilities", "Utilities", "#38bdf8", "bolt"),
+            ("internet_phone", "Internet + Phone", "#0EA5E9", "wifi"),
+            ("transport", "Transport", "#22C55E", "car"),
+            ("fuel", "Fuel", "#F97316", "fuel"),
             ("shopping", "Shopping", "#f472b6", "shopping_bag"),
             ("bills", "Bills", "#f59e0b", "receipt"),
+            ("education_training", "Education / Training", "#6366F1", "school"),
+            ("medical", "Medical", "#EF4444", "medical"),
+            ("entertainment", "Entertainment", "#EC4899", "movie"),
+            ("software_tools", "Software Tools", "#00D5FF", "code"),
+            ("subscription_saas", "Subscriptions", "#A855F7", "repeat"),
+            ("office_supplies", "Office Supplies", "#64748B", "office"),
+            ("marketing", "Marketing", "#F43F5E", "megaphone"),
+            ("loan_payment", "Loan Payment", "#FB7185", "loan"),
+            ("emi_installment", "EMI / Installment", "#F59E0B", "calendar"),
+            ("other", "Other", "#94A3B8", "more"),
         ]
     return [
         {
@@ -7632,6 +7657,25 @@ def pocket_native_slug(value: str, fallback: str = "custom") -> str:
 
 def pocket_native_currency_payload() -> dict[str, str]:
     return {"currencyCode": "BDT", "currencySymbol": "৳"}
+
+
+def pocket_native_category_lookup(db: sqlite3.Connection, kind: str) -> dict[str, dict[str, object]]:
+    return {str(item.get("key") or ""): item for item in pocket_native_all_categories(db, kind)}
+
+
+def pocket_native_category_label(db: sqlite3.Connection, kind: str, key: str) -> str:
+    clean_key = str(key or "").strip()
+    lookup = pocket_native_category_lookup(db, kind)
+    if clean_key in lookup:
+        return str(lookup[clean_key].get("label") or clean_key.replace("_", " ").title())
+    label_map = INCOME_CATEGORY_LABELS if kind == "income" else EXPENSE_CATEGORY_LABELS
+    return str(label_map.get(clean_key, {}).get("en") or clean_key.replace("_", " ").title() or "Other")
+
+
+def pocket_native_category_color(db: sqlite3.Connection, kind: str, key: str, fallback: str) -> str:
+    lookup = pocket_native_category_lookup(db, kind)
+    item = lookup.get(str(key or "").strip())
+    return str(item.get("colorHex") or fallback) if item else fallback
 
 
 def pocket_native_db() -> sqlite3.Connection:
@@ -8041,36 +8085,185 @@ def pocket_native_auth_logout():
 @app.get("/api/pocket/native/dashboard")
 def pocket_native_dashboard():
     _, user = pocket_native_current_auth()
-    currency_code = "BDT"
-    currency_symbol = "৳"
+    db = pocket_native_db()
+    today_iso = date.today().isoformat()
+    month_start, month_end, _ = pocket_native_month_bounds(today_iso[:7])
+
+    income_total = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes").fetchone()[0] or 0)
+    expense_total = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses").fetchone()[0] or 0)
+    month_income = float(
+        db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE income_date BETWEEN ? AND ?",
+            (month_start, month_end),
+        ).fetchone()[0]
+        or 0
+    )
+    month_expense = float(
+        db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_date BETWEEN ? AND ?",
+            (month_start, month_end),
+        ).fetchone()[0]
+        or 0
+    )
+    today_income = float(
+        db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE income_date = ?", (today_iso,)).fetchone()[0]
+        or 0
+    )
+    today_expense = float(
+        db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_date = ?", (today_iso,)).fetchone()[0]
+        or 0
+    )
+    balance = income_total - expense_total
+
+    budget_rows = db.execute(
+        """
+        SELECT category_key, amount
+        FROM pocket_native_budgets
+        WHERE is_active = 1
+        """
+    ).fetchall()
+    budget_amount = sum(float(row["amount"] or 0) for row in budget_rows)
+    budget_categories = [str(row["category_key"] or "") for row in budget_rows]
+    budget_spent = 0.0
+    if budget_categories:
+        placeholders = ",".join("?" for _ in budget_categories)
+        budget_spent = float(
+            db.execute(
+                f"""
+                SELECT COALESCE(SUM(amount), 0)
+                FROM expenses
+                WHERE category IN ({placeholders})
+                  AND expense_date BETWEEN ? AND ?
+                """,
+                (*budget_categories, month_start, month_end),
+            ).fetchone()[0]
+            or 0
+        )
+    budget_remaining = max(0.0, budget_amount - budget_spent)
+    budget_used_percent = int(round((budget_spent / budget_amount) * 100)) if budget_amount > 0 else 0
+
+    goal_row = db.execute(
+        """
+        SELECT COALESCE(SUM(saved_amount), 0) AS saved,
+               COALESCE(SUM(target_amount), 0) AS target
+        FROM pocket_native_goals
+        WHERE status = 'ACTIVE'
+        """
+    ).fetchone()
+    goal_saved = float(goal_row["saved"] or 0) if goal_row is not None else 0.0
+    goal_target = float(goal_row["target"] or 0) if goal_row is not None else 0.0
+    goal_progress = int(round((goal_saved / goal_target) * 100)) if goal_target > 0 else 0
+
+    category_rows = db.execute(
+        """
+        SELECT category, COALESCE(SUM(amount), 0) AS amount
+        FROM expenses
+        WHERE expense_date BETWEEN ? AND ?
+        GROUP BY category
+        ORDER BY amount DESC
+        LIMIT 8
+        """,
+        (month_start, month_end),
+    ).fetchall()
+    analytics_categories = [
+        {
+            "key": str(row["category"] or "other"),
+            "label": pocket_native_category_label(db, "expense", str(row["category"] or "other")),
+            "amount": float(row["amount"] or 0),
+            "colorHex": pocket_native_category_color(db, "expense", str(row["category"] or "other"), "#58A6FF"),
+        }
+        for row in category_rows
+    ]
+
+    weekly_rows = db.execute(
+        """
+        SELECT STRFTIME('%W', expense_date) AS week_no,
+               MIN(expense_date) AS start_date,
+               COALESCE(SUM(amount), 0) AS amount
+        FROM expenses
+        WHERE expense_date BETWEEN ? AND ?
+        GROUP BY week_no
+        ORDER BY start_date ASC
+        """,
+        (month_start, month_end),
+    ).fetchall()
+    weekly = [
+        {
+            "label": f"Week {index + 1}",
+            "date": str(row["start_date"] or ""),
+            "amount": float(row["amount"] or 0),
+        }
+        for index, row in enumerate(weekly_rows)
+    ]
+
+    recent_income = db.execute(
+        """
+        SELECT id, income_date AS entry_date, category, source_name AS party_name, amount, note, 'income' AS kind
+        FROM incomes
+        ORDER BY income_date DESC, id DESC
+        LIMIT 10
+        """
+    ).fetchall()
+    recent_expense = db.execute(
+        """
+        SELECT id, expense_date AS entry_date, category, employee_name AS party_name, amount, note, 'expense' AS kind
+        FROM expenses
+        ORDER BY expense_date DESC, id DESC
+        LIMIT 10
+        """
+    ).fetchall()
+    recent_activity = []
+    for row in sorted([*recent_income, *recent_expense], key=lambda item: (str(item["entry_date"] or ""), int(item["id"] or 0)), reverse=True)[:12]:
+        kind = str(row["kind"] or "")
+        category = str(row["category"] or "other")
+        amount = float(row["amount"] or 0)
+        recent_activity.append(
+            {
+                "id": int(row["id"] or 0),
+                "kind": kind,
+                "mode": kind,
+                "label": str(row["party_name"] or pocket_native_category_label(db, kind, category)),
+                "categoryLabel": pocket_native_category_label(db, kind, category),
+                "note": str(row["note"] or ""),
+                "date": str(row["entry_date"] or ""),
+                "amount": amount,
+                "signedAmount": amount if kind == "income" else -amount,
+                "colorHex": "#22c55e" if kind == "income" else pocket_native_category_color(db, "expense", category, "#ff4da6"),
+                "iconClass": "",
+                "canDelete": True,
+                "detailUrl": "",
+                "editUrl": "",
+                "deleteUrl": "",
+            }
+        )
+
     return jsonify(
         ok=True,
         message="Pocket Pro dashboard ready.",
         user=user,
         dashboard={
-            "currencyCode": currency_code,
-            "currencySymbol": currency_symbol,
+            **pocket_native_currency_payload(),
             "summary": {
-                "totalBalance": 0.0,
-                "monthIncome": 0.0,
-                "monthExpense": 0.0,
-                "todayIncome": 0.0,
-                "todayExpense": 0.0,
-                "budgetRemaining": 0.0,
-                "budgetAmount": 0.0,
-                "budgetSpent": 0.0,
-                "budgetUsedPercent": 0,
-                "goalSaved": 0.0,
-                "goalTarget": 0.0,
-                "goalProgressPercent": 0,
+                "totalBalance": balance,
+                "monthIncome": month_income,
+                "monthExpense": month_expense,
+                "todayIncome": today_income,
+                "todayExpense": today_expense,
+                "budgetRemaining": budget_remaining,
+                "budgetAmount": budget_amount,
+                "budgetSpent": budget_spent,
+                "budgetUsedPercent": budget_used_percent,
+                "goalSaved": goal_saved,
+                "goalTarget": goal_target,
+                "goalProgressPercent": goal_progress,
                 "accounts": 1,
                 "openingBalance": 0.0,
             },
             "accounts": [
-                {"id": 1, "name": "My Wallet", "type": "CASH", "openingBalance": 0.0, "currentBalance": 0.0, "isDefault": True}
+                {"id": 1, "name": "My Wallet", "type": "CASH", "openingBalance": 0.0, "currentBalance": balance, "isDefault": True}
             ],
-            "analytics": {"categories": [], "weekly": []},
-            "recentActivity": [],
+            "analytics": {"categories": analytics_categories, "weekly": weekly},
+            "recentActivity": recent_activity,
             "reportsPdfUrl": "",
         },
     )
@@ -8674,7 +8867,7 @@ def pocket_native_transaction_save():
     amount = max(0.0, float(payload.get("amount") or 0))
     if amount <= 0:
         return jsonify(ok=False, message="Amount must be greater than 0."), 400
-    entry_date = normalize_date(str(payload.get("entryDate") or payload.get("entry_date") or ""))
+    entry_date = normalize_date(str(payload.get("entryDate") or payload.get("entry_date") or payload.get("date") or ""))
     category_key = pocket_native_slug(str(payload.get("categoryKey") or payload.get("category_key") or ""), "misc")
     payment_method = str(payload.get("paymentMethod") or payload.get("payment_method") or "CASH").strip().upper() or "CASH"
     party_name = str(payload.get("partyName") or payload.get("party_name") or "").strip()
