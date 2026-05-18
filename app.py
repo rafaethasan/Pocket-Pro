@@ -2458,7 +2458,7 @@ def proxy_pocket_legacy_request(proxy_path: str):
 
 def run_subscription_automation(send_notifications: bool = True) -> dict[str, int]:
     admin_db = get_admin_db()
-    today_iso = date.today().isoformat()
+    today_iso = pocket_native_today_iso()
 
     accounts = admin_db.execute(
         """
@@ -7725,10 +7725,18 @@ def pocket_native_month_bounds(month_value: str) -> tuple[str, str, str]:
     try:
         first_day = datetime.strptime(clean, "%Y-%m").date().replace(day=1)
     except ValueError:
-        today = date.today()
+        today = pocket_native_today()
         first_day = today.replace(day=1)
     last_day = first_day.replace(day=calendar.monthrange(first_day.year, first_day.month)[1])
     return first_day.isoformat(), last_day.isoformat(), first_day.strftime("%B %Y")
+
+
+def pocket_native_today() -> date:
+    return (datetime.utcnow() + timedelta(hours=6)).date()
+
+
+def pocket_native_today_iso() -> str:
+    return pocket_native_today().isoformat()
 
 
 def pocket_native_user_payload(
@@ -8676,7 +8684,7 @@ def pocket_native_goals_save():
             INSERT INTO pocket_native_goal_history (goal_id, amount, saved_at, note, kind)
             VALUES (?, ?, ?, ?, 'save')
             """,
-            (goal_id, min(saved, target), date.today().isoformat(), "Initial save"),
+            (goal_id, min(saved, target), pocket_native_today_iso(), "Initial save"),
         )
     db.commit()
     response = pocket_native_goals()
@@ -8704,7 +8712,7 @@ def pocket_native_goal_saved(goal_id: int):
         INSERT INTO pocket_native_goal_history (goal_id, amount, saved_at, note, kind)
         VALUES (?, ?, ?, '', 'save')
         """,
-        (goal_id, amount, date.today().isoformat()),
+        (goal_id, amount, pocket_native_today_iso()),
     )
     db.commit()
     response = pocket_native_goals()
@@ -8818,7 +8826,7 @@ def pocket_native_transaction_form():
         form={
             "mode": mode,
             **pocket_native_currency_payload(),
-            "defaultEntryDate": date.today().isoformat(),
+            "defaultEntryDate": pocket_native_today_iso(),
             "defaultAccountId": 1,
             "defaultCategoryKey": pocket_native_all_categories(db, category_kind)[0]["key"],
             "defaultPaymentMethod": "CASH",
@@ -8867,7 +8875,8 @@ def pocket_native_transaction_save():
     amount = max(0.0, float(payload.get("amount") or 0))
     if amount <= 0:
         return jsonify(ok=False, message="Amount must be greater than 0."), 400
-    entry_date = normalize_date(str(payload.get("entryDate") or payload.get("entry_date") or payload.get("date") or ""))
+    raw_entry_date = str(payload.get("entryDate") or payload.get("entry_date") or payload.get("date") or "").strip()
+    entry_date = normalize_date(raw_entry_date) if raw_entry_date else pocket_native_today_iso()
     category_key = pocket_native_slug(str(payload.get("categoryKey") or payload.get("category_key") or ""), "misc")
     payment_method = str(payload.get("paymentMethod") or payload.get("payment_method") or "CASH").strip().upper() or "CASH"
     party_name = str(payload.get("partyName") or payload.get("party_name") or "").strip()
