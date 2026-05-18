@@ -8101,24 +8101,24 @@ def pocket_native_dashboard():
     expense_total = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses").fetchone()[0] or 0)
     month_income = float(
         db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE income_date BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE DATE(income_date) BETWEEN DATE(?) AND DATE(?)",
             (month_start, month_end),
         ).fetchone()[0]
         or 0
     )
     month_expense = float(
         db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_date BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE DATE(expense_date) BETWEEN DATE(?) AND DATE(?)",
             (month_start, month_end),
         ).fetchone()[0]
         or 0
     )
     today_income = float(
-        db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE income_date = ?", (today_iso,)).fetchone()[0]
+        db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE DATE(income_date) = DATE(?)", (today_iso,)).fetchone()[0]
         or 0
     )
     today_expense = float(
-        db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_date = ?", (today_iso,)).fetchone()[0]
+        db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE DATE(expense_date) = DATE(?)", (today_iso,)).fetchone()[0]
         or 0
     )
     balance = income_total - expense_total
@@ -8141,7 +8141,7 @@ def pocket_native_dashboard():
                 SELECT COALESCE(SUM(amount), 0)
                 FROM expenses
                 WHERE category IN ({placeholders})
-                  AND expense_date BETWEEN ? AND ?
+                  AND DATE(expense_date) BETWEEN DATE(?) AND DATE(?)
                 """,
                 (*budget_categories, month_start, month_end),
             ).fetchone()[0]
@@ -8166,7 +8166,7 @@ def pocket_native_dashboard():
         """
         SELECT category, COALESCE(SUM(amount), 0) AS amount
         FROM expenses
-        WHERE expense_date BETWEEN ? AND ?
+        WHERE DATE(expense_date) BETWEEN DATE(?) AND DATE(?)
         GROUP BY category
         ORDER BY amount DESC
         LIMIT 8
@@ -8189,7 +8189,7 @@ def pocket_native_dashboard():
                MIN(expense_date) AS start_date,
                COALESCE(SUM(amount), 0) AS amount
         FROM expenses
-        WHERE expense_date BETWEEN ? AND ?
+        WHERE DATE(expense_date) BETWEEN DATE(?) AND DATE(?)
         GROUP BY week_no
         ORDER BY start_date ASC
         """,
