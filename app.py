@@ -8121,6 +8121,28 @@ def pocket_native_dashboard():
         db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE DATE(expense_date) = DATE(?)", (today_iso,)).fetchone()[0]
         or 0
     )
+    if today_income == 0 and today_expense == 0:
+        latest_activity_date = db.execute(
+            """
+            SELECT MAX(entry_date) AS entry_date
+            FROM (
+                SELECT DATE(income_date) AS entry_date FROM incomes WHERE DATE(income_date) BETWEEN DATE(?) AND DATE(?)
+                UNION ALL
+                SELECT DATE(expense_date) AS entry_date FROM expenses WHERE DATE(expense_date) BETWEEN DATE(?) AND DATE(?)
+            )
+            """,
+            (month_start, month_end, month_start, month_end),
+        ).fetchone()
+        fallback_today = str(latest_activity_date["entry_date"] or "") if latest_activity_date is not None else ""
+        if fallback_today:
+            today_income = float(
+                db.execute("SELECT COALESCE(SUM(amount), 0) FROM incomes WHERE DATE(income_date) = DATE(?)", (fallback_today,)).fetchone()[0]
+                or 0
+            )
+            today_expense = float(
+                db.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE DATE(expense_date) = DATE(?)", (fallback_today,)).fetchone()[0]
+                or 0
+            )
     balance = income_total - expense_total
 
     budget_rows = db.execute(
